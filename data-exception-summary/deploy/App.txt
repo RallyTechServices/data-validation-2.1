@@ -3,12 +3,12 @@
 <head>
     <title>Data Exception Summary</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Wed Nov 09 2016 13:47:32 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Nov 09 2016 13:48:20 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Nov 09 2016 13:47:32 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Wed Nov 09 2016 13:48:20 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 191081254715;
+        var CHECKSUM = 191081253977;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
