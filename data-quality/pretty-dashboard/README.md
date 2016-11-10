@@ -5,7 +5,7 @@ This app shows a visual display of % flagged items for each configured rule.
 
 Each rule block is colored according to configured thresholds for the percent of items that are flagged. 
 
-![ScreenShot](/images/data-quality-pretty-dashboard.png)
+![ScreenShot](./../images/data-quality-pretty-dashboard.png)
 
 ## Development Notes
 
