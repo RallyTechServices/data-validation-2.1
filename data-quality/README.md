@@ -8,10 +8,14 @@ This app aggregates by the first line of teams directly underneath the currently
 
 Clicking on a number in the grid will load a detail grid of the flagged items represented by the number.  This grid can be used to make updates to the items.   
 
+ [(see screenshot...)](/data-quality/data-exception-summary/README.md)  
+
 ## Pretty Dashboard App
 This app shows a visual display of % flagged items for each configured rule.  
 
 Each rule block is colored according to configured thresholds for the percent of items that are flagged. 
+
+ [(see screenshot...)](/data-quality/pretty-dashboard/README.md) 
 
 ###Development Notes
 Both apps use the rulesConfig in the common/src/javascript/rules-config.js file.  
