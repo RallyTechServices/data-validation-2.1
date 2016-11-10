@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Quality Dashboard</title>
+    <script type="text/javascript">
+        var APP_BUILD_DATE = "Thu Nov 10 2016 10:19:05 GMT-0700 (MST)";
+    </script>
+    
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.1/sdk-debug.js?apiKey=_PUT_APIKEY_HERE_"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function() {
+            Rally.loadScripts(["src/javascript/rules/_rule_base.js","src/javascript/utils/__ts-info-link.js","src/javascript/utils/__ts-logger.js","src/javascript/utils/rule-template.js","src/javascript/utils/validator.js","src/javascript/app.js"],
+	            function() {
+	                Rally.launchApp('data-quality-dashboard', {
+	                    name: 'Data Quality Dashboard'
+	                })
+	            }, true);
+        });
+    </script>
+<link rel="stylesheet" type="text/css" href="src/style/app.css">
+
+</head>
+<body></body>
+</html>
