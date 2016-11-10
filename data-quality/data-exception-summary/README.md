@@ -1,8 +1,16 @@
 #Data Exception Summary
+This app shows a table of the number of flagged items for each configured "rule".  The numbers are aggregated by team level.
+This app aggregates by the first line of teams directly underneath the currently scoped Project/Team.  
 
+Clicking on a number in the grid will load a detail grid of the flagged items represented by the number.  This grid can be used to make updates to the items.   
+
+![ScreenShot](/images/data-quality-data-exception-summary.png)
 
 Note: This requires at least viewer permissions to the entire Project structure for the Project/Team tree in which this is running becuase it depends on the project hierarchy and it checks for whether or not projects are leaf nodes.  If 
 some project permissions are missing for the tree in which this is running, then the validation results may be inaccurate.
+
+![ScreenShot](/images/data-quality-data-exception-detail.png)
+
 
 ## Development Notes
 
