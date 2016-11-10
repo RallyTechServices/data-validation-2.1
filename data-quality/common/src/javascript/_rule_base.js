@@ -1,4 +1,4 @@
-Ext.define('CA.techservices.validation.BaseRule',{
+Ext.define('CA.technicalservices.dataquality.common.BaseRule',{
     extend: 'Ext.Base',
     alias:  'widget.tsrule_base',
     /*
@@ -22,8 +22,17 @@ Ext.define('CA.techservices.validation.BaseRule',{
 
     query: null,
 
+    baseQuery: null,
+
+    fetchFields: null,
+
+    detailFetchFields: null,
+
     constructor: function(config) {
+        console.log('beforeconfig', config, this);
+        this.initialConfig = config;
         Ext.apply(this,config);
+        console.log('afterconfig', config, this);
     },
     getFeatureName: function(){
         return this.portfolioItemTypes && this.portfolioItemTypes.length > 1 &&
@@ -33,13 +42,19 @@ Ext.define('CA.techservices.validation.BaseRule',{
         return this.description;
     },
     getFetchFields: function() {
-        return ['FormattedID'];
+        return this.fetchFields || ['FormattedID'];
+    },
+    getDetailFetchFields: function(){
+        return this.detailFetchFields || this.getFetchFields();
     },
     getLabel: function() {
         return this.label;
     },
     getModel: function() {
         return this.model;
+    },
+    getConfig: function(){
+        return this.initialConfig;
     },
     getCountConfig: function(){
         return {
@@ -56,6 +71,11 @@ Ext.define('CA.techservices.validation.BaseRule',{
         };
     },
     getBaseFilters: function(){
+
+        if (this.baseQuery){
+            return Rally.data.wsapi.Filter.fromQueryString(this.baseQuery);
+        }
+
         return Ext.create('Rally.data.wsapi.Filter', {
             property:'ObjectID',
             operator:'>',

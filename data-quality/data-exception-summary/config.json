@@ -1,5 +1,5 @@
 {
-    "name": "Data Exception Summary",
+    "name": "Data Exception Drilldown App",
     "sdk": "2.1",
     "className": "data-exception-summary"
 }

@@ -15,23 +15,25 @@ Ext.define('CA.technicalservices.validation.RuleTemplate', {
      * }
      */
 
-    constructor: function() {
+    constructor: function(config) {
+        var me = this;
+        var columns = config.columns || 3;
 
         this.callParent([
             '<div class="dashboard-header">Financial Reporting Risks - {bucket}</div>',
-            '<table class="dashboard-table"><tr></tr>',
+            '<table class="dashboard-table"><tr>',
             '<tpl for="rules">',
-                '<tpl if="this.isRowBreak(xindex)"></tr><tr></tpl>',
                 '<td class="dashboard-box">',
                     '<div class="{[this.getTitleClass(values)]}">{label}</div>',
                     '<div class="dashboard-percent-title">{[this.getPercentString(values)]}</div>',
                     '<div class="dashboard-subtitle">{flaggedCount} {unitLabel} out of {totalCount}</div>',
                     '<div class="dashboard-description">{description}</div>',
                 '</td>',
+            '<tpl if="this.isRowBreak(xindex)"></tr><tr></tpl>',
             '</tpl>',
             '</tr></table>',
             {
-                columns: 4,
+                columns: columns,
                 getPercentString: function(values){
                     var percent = this.getPercent(values);
                     if (percent === null){
@@ -43,23 +45,22 @@ Ext.define('CA.technicalservices.validation.RuleTemplate', {
                     return values.totalCount > 0 ? (values.flaggedCount / values.totalCount * 100) : null;
                 },
                 isRowBreak: function(col){
-                    console.log('isRowBreak', col % this.columns);
-                    if (col > this.columns && col % (this.columns + 1) === 0){
+                    if((col >= this.columns) && (col % this.columns === 0)){
                         return true;
                     }
                     return false;
                 },
                 getTitleClass: function(values){
                     var percent = this.getPercent(values);
-                    console.log('percent')
+
                     if (percent === null){
                         return 'dashboard-top dashboard-gray';
                     }
 
-                    if (percent < 10){
+                    if (percent < CA.technicalservices.dataquality.common.Rules.prettyThreshholdGreen){
                         return 'dashboard-top dashboard-green';
                     }
-                    if (percent < 20){
+                    if (percent < CA.technicalservices.dataquality.common.Rules.prettyThreshholdYellow){
                         return 'dashboard-top dashboard-yellow';
                     }
                     return 'dashboard-top dashboard-red';

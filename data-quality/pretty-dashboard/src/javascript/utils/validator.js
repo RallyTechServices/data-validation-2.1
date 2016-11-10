@@ -52,9 +52,16 @@ Ext.define('CA.technicalservices.validator.Validator',{
             success: function(totalCount){
                 rule.totalCount = totalCount;
                 this.logger.log('updateRule.getTotalCount', rule.model, totalCount);
-                this._loadWsapiCount(rule.getCountConfig()).then({
+
+                var config = rule.getCountConfig();
+                config.context = {
+                    project: this.projectRef,
+                    projectScopeDown: true
+                };
+
+                this._loadWsapiCount(config).then({
                     success: function(count){
-                        this.logger.log('updateRule._loadWsapiCount', rule.getLabel(), count);
+                        this.logger.log('updateRule._loadWsapiCount', rule.getLabel(), count, config);
                         rule.flaggedCount = count;
                         deferred.resolve();
                     },
@@ -78,7 +85,11 @@ Ext.define('CA.technicalservices.validator.Validator',{
         } else {
             this._loadWsapiCount({
                 model: model,
-                fetch: ['ObjectID']
+                fetch: ['ObjectID'],
+                context: {
+                    project: this.projectRef,
+                    projectScopeDown: true
+                }
             }).then({
                 success: function(count){
                     if (!this.totalCounts){
