@@ -184,7 +184,7 @@ Ext.define("data-exception-summary", {
                     headerPosition: 'left',
                     header: true,
                     cls: 'detail-panel',
-                    width: this.getWidth() *.90,
+                    width: this.getWidth(),
                     height: this.getHeight(),
                     padding: 10,
                     overflowY: 'auto',

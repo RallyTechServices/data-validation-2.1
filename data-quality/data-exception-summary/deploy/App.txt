@@ -3,12 +3,12 @@
 <head>
     <title>Data Exception Drilldown App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Nov 10 2016 13:19:12 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Nov 16 2016 20:40:49 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Nov 10 2016 13:19:12 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Wed Nov 16 2016 20:40:49 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 79094130769;
+        var CHECKSUM = 79276238805;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -1474,6 +1474,10 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
                 children.push(key);
             }
         });
+
+        if (children.length === 0){
+            children.push(projectID);
+        }
         return children;
     }
 });
@@ -1663,7 +1667,7 @@ Ext.define("data-exception-summary", {
                     headerPosition: 'left',
                     header: true,
                     cls: 'detail-panel',
-                    width: this.getWidth() *.90,
+                    width: this.getWidth(),
                     height: this.getHeight(),
                     padding: 10,
                     overflowY: 'auto',
