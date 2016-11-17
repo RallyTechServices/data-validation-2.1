@@ -90,6 +90,10 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
                 children.push(key);
             }
         });
+
+        if (children.length === 0){
+            children.push(projectID);
+        }
         return children;
     }
 });
