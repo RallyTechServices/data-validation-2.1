@@ -43,7 +43,7 @@ Ext.define('CA.techservices.validation.BaseRule',{
         });
     },
     _getFeatureName: function(){
-        return "Feature";
+       // return "Feature";
         return this.portfolioItemTypes[0].TypePath.replace('PortfolioItem/','');
     },
     getUserFriendlyRuleLabel: function() {
