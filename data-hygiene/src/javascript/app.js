@@ -7,168 +7,256 @@ Ext.define("data-hygiene", {
     integrationHeaders : {
         name : "data-hygiene"
     },
-    getSettingsFields: function() {
-        return [];
-    },
+
+    items: [
+        {xtype:'container',itemId:'selector_box', flex: 1, float: 'right'},
+        {xtype:'container',itemId:'chart_box', flex: 1},
+        {xtype:'container',itemId:'grid_box', flex: 1}
+    ],
+
     config: {
         defaultSettings: {
             portfolioAOPField: 'Ready',
             portfolioCRField: 'Ready',
-            userStoryCRField: 'Ready'
+            userStoryCRField: 'Ready',
+            projectGroups: []
         }
     },
 
-    scheduleStates: ['Defined','In-Progress','Completed','Accepted'],
+    scheduleStates: null,
+    portfolioItemTypes: null,
+    portfolioItemStates: null,
 
     launch: function() {
         // get any data model customizations ... then get the data and render the chart
-        this._fetchPortfolioItemTypes().then({
+        Deft.Promise.all([
+            CA.technicalservices.Toolbox.fetchPortfolioItemTypes(),
+            CA.technicalservices.Toolbox.fetchPortfolioItemStates(),
+            CA.technicalservices.Toolbox.fetchScheduleStates()
+        ]).then({
             success: this._initializeApp,
             failure: this._showErrorMsg,
             scope: this
         });
     },
-    _initializeApp: function(portfolioItemTypes){
-        this.logger.log('InitializeApp',portfolioItemTypes);
+    _initializeApp: function(results){
+        this.logger.log('InitializeApp',results);
 
-        this.portfolioItemTypes = portfolioItemTypes;
+        this.portfolioItemTypes = results[0];
+        this.portfolioItemStates = results[1];
+        this.scheduleStates = results[2];
 
         this._loadData();
     },
     _showErrorMsg: function(msg){
+        this.logger.log('_showErrorMsg', msg);
         Rally.ui.notify.Notifier.showError({message:msg});
     },
-    _fetchPortfolioItemTypes: function(){
-        var deferred = Ext.create('Deft.Deferred');
-        Ext.create('Rally.data.wsapi.Store',{
-            model: 'typedefinition',
-            fetch:['TypePath','Ordinal','Name'],
-            filters: [{property:'TypePath',operator:'contains',value:'PortfolioItem/'}],
-            sorters: [{property:'Ordinal',direction:'ASC'}]
-        }).load({
-            callback: function(records,operation){
-                if (operation.wasSuccessful()){
-                    var portfolioItemArray = [];
-                    Ext.Array.each(records,function(rec){
-                        portfolioItemArray.push(rec.getData());
-                    });
-                    deferred.resolve(portfolioItemArray);
-                } else {
-                    var message = 'failed to load Portfolio Item Types ' + (operation.error && operation.error.errors.join(','));
-                    deferred.reject(message);
-                }
-            }
-        });
-        return deferred;
-    },
+
     _loadData: function(){
         var me = this;
 
+        this.getExportBox().removeAll();
+        this.getChartBox().removeAll();
+        this.getGridBox().removeAll();
+
         this.validator = this._createValidator();
-
-        Deft.Chain.pipeline([
-            function() {
-                me.setLoading("Gathering data...");
-                return me.validator.gatherData();
+        this.logger.log('_loadData')
+        this.validator.fetchData().then({
+            success: function(data){
+                this.logger.log('_loadData.success', data);
+                this._addChart(data);
+                this._buildGrids(data);
             },
-            function() {
-                me.setLoading("Analyzing data...");
-                return me.validator.getChartData();
-            }
-        ]).then({
-            scope: this,
-            success: function(results) {
-                this.logger.log('_loadData results', results);
-
-                //if ( results.categories && results.categories.length === 0 ) {
-                //    // if no results - erase the underlying, previously rendered chart
-                //    this.down('#display_box').removeAll();
-                //    Ext.Msg.alert('','No violations found with current selections.');
-                //    return;
-                //}
-                //
-                this.logger.log('this.display_rows', this.validator.recordsByModel);
-                //
-                this._buildGrid(results);
-                //this._makeChart(results);
-            },
-            failure: function(msg) {
-                Ext.Msg.alert('Problem loading data', msg);
-            }
+            failure: this._showErrorMsg,
+            scope: this
         }).always(function() { me.setLoading(false); });
     },
 
-    _buildGrid: function(chartData){
-        var hash = this._reprocessChartData(chartData);
+    _addChart: function(chartData){
+        this.logger.log('addChart', chartData);
+        //series: [{
+        //    name: ruleName,
+        //    data: [49.9, 71.5, 106.4, 129.2, 144.0, 176.0, 135.6, 148.5, 216.4, 194.1, 95.6, 54.4]
+        //    stack: type
 
-        Ext.Object.each(hash, function(type, obj){
+        var projects = _.map(this.getProjectGroups(), function(pg){
+            return pg.groupName;
+        });
+
+        var ruleHash = {},
+            types = [];
+
+        Ext.Array.each(chartData, function(cd){
+            if (!Ext.Array.contains(types, cd.type)){
+                types.push(cd.type);
+            }
+            if (!ruleHash[cd.ruleName]){
+                ruleHash[cd.ruleName] = {};
+            }
+            //if (!ruleHash[cd.ruleName][cd.type]){
+            //    ruleHash[cd.ruleName][cd.type] = {};
+            //}
+            Ext.Array.each(projects, function(p){
+                //ruleHash[cd.ruleName][cd.type][p] = cd[p] || 0;
+                ruleHash[cd.ruleName][p] = cd[p] || 0;
+            });
+        });
+
+        this.logger.log('chartData', ruleHash);
+
+        var series = [],
+            categories = Ext.Object.getKeys(ruleHash);
+
+        Ext.Array.each(projects, function(p){
+          //  Ext.Array.each(types, function(t){
+                var values = [];
+                Ext.Array.each(categories, function(r){
+                    values.push(ruleHash[r] && ruleHash[r][p] || 0);
+                });
+                series.push({
+                    name: p,
+                    data: values
+                   // stack: t
+                });
+           // });
+        });
+
+        this.logger.log('chartData', series, projects);
+        this.getChartBox().add({
+            xtype: 'rallychart',
+            chartConfig: {
+                chart: {
+                    type: 'bar',
+                    height: 500,
+                    marginLeft: Math.max(this.getWidth()/2, 1)
+                },
+                title: {
+                    text: null
+                },
+                xAxis: {
+                    title: {
+                        text: null
+                    },
+                    tickPlacement: 'on'
+                },
+                yAxis: [
+                    {
+                        title: {
+                            text: 'Artifact Count'
+                        }
+                    }
+                ],
+                plotOptions: {
+                    bar: {
+                        stacking: 'normal'
+                    }
+                }
+            },
+            chartData: {
+                series: series,
+                categories: categories
+            }
+        });
+
+    },
+    export: function(){
+        var grids = this.query('rallygrid');
+        this.logger.log('export', grids);
+
+        var csv = [];
+        var keys = ['type','ruleName'],
+            headers = ['Artifact Type', 'Rule'];
+
+        Ext.Array.each(this.getProjectGroups(), function(pg){
+            keys.push(pg.groupName);
+            headers.push(pg.groupName);
+        });
+
+        Ext.Array.each(grids, function(grid){
+            var records = grid.getStore() && grid.getStore().getRange();
+            if (records && records.length > 0){
+                csv.push(Ext.String.format("{0} Data Hygiene", this.getUserFriendlyName(records[0].get('type'))));
+                csv.push(headers.join(','));
+                Ext.Array.each(records, function(r){
+                    var row = Ext.Array.map(keys, function(key){
+                        var v = r.get(key) || 0;
+                        if (key == 'type'){
+                            return this.getUserFriendlyName(v);
+                        }
+
+
+                        if (Ext.isString(v)){
+                            return Ext.String.format("\"{0}\"", v.toString().replace(/"/g, "\"\""));
+                        }
+                        return v;
+
+                    }, this);
+                    csv.push(row.join(','));
+                }, this);
+            }
+        }, this);
+        csv = csv.join('\r\n');
+        this.logger.log('export csv', csv);
+
+        var fileName = Ext.String.format("data-hygiene-{0}.csv",Rally.util.DateTime.format(new Date(), 'Y-m-d-h-i-s'));
+        Rally.technicalservices.FileUtilities.saveCSVToFile(csv, fileName);
+    },
+    addExportButton: function(){
+
+        var btn = this.getExportBox().add({
+            xtype: 'rallybutton',
+            iconCls: 'icon-export',
+            cls: 'secondary rly-small'
+        });
+        btn.on('click', this.export, this);
+    },
+    _buildGrids: function(data){
+
+       this.addExportButton();
+
+       var typeHash = {};
+        Ext.Array.each(data, function(d){
+            if (!typeHash[d.type]){
+                typeHash[d.type] = [];
+            }
+            typeHash[d.type].push(d);
+        });
+        this.logger.log('_buildGrids', data, typeHash);
+        Ext.Object.each(typeHash, function(type, obj){
             this._buildSubGrid(type, obj);
         }, this);
 
     },
-    _reprocessChartData: function(chartData){
-        var hash = {};
-        this.logger.log('_reprocessChartData', chartData);
-        Ext.Array.each(chartData.series, function(s){
-            if (!hash[s.stack]){
-                hash[s.stack] = {};
-            }
-            if (!hash[s.stack][s.name]){
-                hash[s.stack][s.name] = {};
-                Ext.Array.each(chartData.categories, function(c){
-                    hash[s.stack][s.name][c] = 0;
-                });
-            }
-            Ext.Array.each(s.records, function(r){
-                var proj = (r.get('Project').Name);
-                hash[s.stack][s.name][proj]++;
-            });
-        });
-        this.logger.log('_reprocessChartData', hash);
-        return hash;
-    },
-    _buildSubGrid: function(type, obj){
-        var data = [],
-            fields = [],
-            projectNames = [];
-        Ext.Object.each(obj, function(rule, projects){
-            var row = projects;
-            row.name = Ext.String.format(rule, type);
-            projectNames = Ext.Object.getKeys(projects);
-            data.push(row);
-        });
+    _buildSubGrid: function(type, data){
+        var fields = [];
 
-        var fields = [{
-            name: 'name', displayName: Ext.String.format('{0} level data hygiene', this.getUserFriendlyName(type))
-        }];
-        Ext.Array.each(projectNames, function(pn){
-            fields.push({
-                name: pn,
-                displayName: pn
-            });
-        });
-
+        if (data && data.length > 0){
+            fields = Ext.Object.getKeys(data[0]);
+        }
+        this.logger.log('_buildSubGrid', data, fields);
         var store = Ext.create('Rally.data.custom.Store',{
             data: data,
             fields: fields
         });
 
         var columnCfgs = [{
-            dataIndex: 'name',
+            dataIndex: 'ruleName',
             text: Ext.String.format('{0} level data hygiene', this.getUserFriendlyName(type)),
             flex: 1
         }];
 
         Ext.Array.each(fields, function(f){
-            if (f.name !== 'name') {
+            if (f !== 'type' && f !== 'ruleName') {
                 columnCfgs.push({
-                    dataIndex: f.name,
-                    text: f.displayName
+                    dataIndex: f,
+                    text: f,
+                    align: 'center'
                 });
             }
         });
 
-        this.add({
+        this.getGridBox().add({
             xtype: 'rallygrid',
             store: store,
             margin: 20,
@@ -202,20 +290,43 @@ Ext.define("data-hygiene", {
     getStoryCRField: function(){
         return this.getSetting('userStoryCRField');
     },
+    getProjectGroups: function(){
+        var groups = [],
+            group_setting = this.getSetting('projectGroups');
+        if (!Ext.isArray(group_setting)){
+            groups = Ext.JSON.decode(group_setting);
+        } else {
+            groups = group_setting;
+        }
+        return groups;
+    },
+    getGridBox: function(){
+        return this.down('#grid_box');
+    },
+    getChartBox: function(){
+        return this.down('#chart_box');
+    },
+    getExportBox: function(){
+        return this.down('#selector_box');
+    },
     _createValidator: function() {
         var rules = [{
             xtype:'tsportfolio_orphan',
             targetPortfolioLevel: 1,
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_project',
             targetPortfolioLevel: 1,
             portfolioItemTypes: this.portfolioItemTypes,
-            portfolioProjects: []
+            portfolioProjects: [],
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_childstate',
             targetPortfolioLevel: 1,
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 1,
@@ -223,7 +334,8 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioAOPField(),
             label: '{0}s with "AOP Approved" field checked',
             description: '{0}s with "AOP Approved" field checked',
-            targetFieldValue: true
+            targetFieldValue: true,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 1,
@@ -231,16 +343,18 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioAOPField(),
             label: '{0}s with "AOP Approved" field <b>not</b> checked',
             description: '{0}s with "AOP Approved" field <b>not</b> checked',
-            targetFieldValue: false
+            targetFieldValue: false,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsportfolio_orphan',
             targetPortfolioLevel: 0,
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_project',
             targetPortfolioLevel: 0,
             portfolioItemTypes: this.portfolioItemTypes,
-            portfolioProjects: []
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 0,
@@ -248,7 +362,8 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioCRField(),
             label: '{0}s with "CR" field checked',
             description: '{0}s with "CR" field checked',
-            targetFieldValue: true
+            targetFieldValue: true,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 0,
@@ -256,40 +371,47 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioCRField(),
             label: '{0}s with "CR" field <b>not</b> checked',
             description: '{0}s with "CR" field <b>not</b> checked',
-            targetFieldValue: false
+            targetFieldValue: false,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_orphan',
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_project',
-            storyProjects: []
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_planestimate',
-            scheduleStates: this.scheduleStates
+            scheduleStates: this.scheduleStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_missingrelease',
-            scheduleStates: this.scheduleStates
+            scheduleStates: this.scheduleStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_mismatchedrelease',
             portfolioItemTypes: this.portfolioItemTypes,
-            scheduleStates: this.scheduleStates
+            scheduleStates: this.scheduleStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsstory_fieldvalue',
             targetField: this.getStoryCRField(),
             label: 'User Stories with "CR" field checked',
             description: 'User Stories with "CR" field checked',
-            targetFieldValue: true
+            targetFieldValue: true,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsstory_fieldvalue',
             targetField: this.getStoryCRField(),
             label: 'User Stories with "CR" field <b>not</b> checked',
             description: 'User Stories with "CR" field <b>not</b> checked',
-            targetFieldValue: false
+            targetFieldValue: false,
+            projectGroups: this.getProjectGroups()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
                 rules: rules,
-                fetchFields: ['FormattedID','ObjectID','Project']
+                projectGroups: this.getProjectGroups()
         });
         return validator;
     },
@@ -327,6 +449,9 @@ Ext.define("data-hygiene", {
             _isNotHidden: function(field) {
                 return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
             }
+        },{
+            name: 'projectGroups',
+            xtype:'tsstrategyexecutiongroupsettingsfield'
         }];
     },
      getOptions: function() {
@@ -344,11 +469,5 @@ Ext.define("data-hygiene", {
     },
     isExternal: function(){
         return typeof(this.getAppId()) == 'undefined';
-    },
-    //onSettingsUpdate:  Override
-    onSettingsUpdate: function (settings){
-        this.logger.log('onSettingsUpdate',settings);
-        // Ext.apply(this, settings);
-        this.launch();
     }
 });

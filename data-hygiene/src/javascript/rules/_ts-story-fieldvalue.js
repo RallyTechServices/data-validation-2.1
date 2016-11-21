@@ -14,25 +14,10 @@ Ext.define('CA.techservices.validation.UserStoryFieldValue',{
         label: 'Field Value'
     },
 
-    getFetchFields: function() {
-        return ['Name',this.targetField];
-    },
-    applyRuleToRecord: function(record) {
-        if (!this.targetField){
-            return null;
-        }
-
-        var val = record.get(this.targetField);
-        if (val === this.targetFieldValue){
-            return this.getDescription();
-        }
-        return null;
-    },
     getFilters: function() {
         return Ext.create('Rally.data.wsapi.Filter', {
             property: this.targetField,
             value: this.targetFieldValue
         });
-//        return [];
     }
 });

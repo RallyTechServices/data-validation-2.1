@@ -13,33 +13,12 @@ Ext.define('CA.techservices.validation.StoryOrphan',{
 
         label: 'Orphan Stories (no parent {1})'
     },
-    getModel:function(){
-        return this.model;
-    },
-    getDescription: function() {
-
-        var msg = Ext.String.format(
-            this.label,
-            this.portfolioItemTypes[0].Name
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Name','Parent','PortfolioItem'];
-    },
     getLabel: function(){
         var msg = Ext.String.format(
             this.label,
             this.portfolioItemTypes[0].Name
         );
         return msg;
-    },
-    applyRuleToRecord: function(record) {
-        if ( Ext.isEmpty(record.get('Parent') && Ext.isEmpty(record.get('PortfolioItem'))) ) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
@@ -49,7 +28,5 @@ Ext.define('CA.techservices.validation.StoryOrphan',{
             property: 'PortfolioItem',
             value: ""
         }]);
-
-//        return [];
     }
 });

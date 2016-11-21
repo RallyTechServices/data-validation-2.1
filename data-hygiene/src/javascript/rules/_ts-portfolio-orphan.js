@@ -16,20 +16,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-        console.log('getLabel', this.portfolioItemTypes[this.targetPortfolioLevel].Name);
-         var msg = Ext.String.format(
-            this.label,
-            this.portfolioItemTypes[this.targetPortfolioLevel].Name,
-            this.portfolioItemTypes[this.targetPortfolioLevel + 1].Name
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Name','Parent'];
-    },
     getLabel: function(){
-        console.log('getLabel', this.portfolioItemTypes[this.targetPortfolioLevel].Name);
         var msg = Ext.String.format(
             this.label,
             this.portfolioItemTypes[this.targetPortfolioLevel].Name,
@@ -37,11 +24,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
         );
         return msg;
     },
-    applyRuleToRecord: function(record) {
-        if ( Ext.isEmpty(record.get('Parent') ) ) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    getFilters: function(){
+        return Rally.data.wsapi.Filter.fromQueryString("(Parent = \"\")");
     }
 });

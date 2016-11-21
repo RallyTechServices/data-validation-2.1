@@ -13,37 +13,69 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
         label: 'Stories with incorrect "Release" tag (does not match parent {0})',
         description: 'Stories with incorrect "Release" tag (does not match parent {0})'
     },
-    getFetchFields: function() {
-        return [this._getFeatureName(),'Release','Name','DirectChildrenCount'];
-    },
-    _getFeatureName: function(){
-        return this.portfolioItemTypes[0].TypePath.replace('PortfolioItem/','');
-    },
     getLabel: function(){
         return Ext.String.format(this.label, this.portfolioItemTypes[0].Name);
     },
-    getDescription: function(){
-        return Ext.String.format(this.description, this.portfolioItemTypes[0].Name);
+    apply: function(pg){
+
+        var deferred = Ext.create('Deft.Deferred'),
+            featureName = this._getFeatureName(),
+            strategyConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                fetch: ['Release','Name',featureName],
+                compact: false,
+                context: {project: pg.strategyProjectRef}
+            },
+            executionConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                fetch: ['Release','Name',featureName],
+                compact: false,
+                context: {project: pg.executionProjectRef}
+            };
+
+        Deft.Promise.all([
+            this._loadWsapiRecords(strategyConfig),
+            this._loadWsapiRecords(executionConfig)
+        ]).then({
+            success: function(results){
+                var records = _.flatten(results),
+                    count = 0;
+                Ext.Array.each(records, function(r){
+                    var release = r.get('Release') && r.get('Release').Name || null,
+                        featureRelease = r.get(featureName) && r.get(featureName).Release && r.get(featureName).Release.Name || null;
+                    if (release != featureRelease){
+                        count++;
+                    }
+                });
+                deferred.resolve(count);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
     },
-    applyRuleToRecord: function(record) {
+    getFilters: function() {
+        //var orFilters = Rally.data.wsapi.Filter.or([{
+        //    property: 'Release.ObjectID',
+        //    operator: '>',
+        //    value: 0
+        //},{
+        //    property: this._getFeatureName() + '.Release.ObjectID',
+        //    operator: '>',
+        //    value: 0
+        //}]);
 
-       var storyRelease = record.get('Release') && record.get('Release').Name || null,
-           featureRelease = record.get(this._getFeatureName()) && record.get(this._getFeatureName()).Release &&
-               record.get(this._getFeatureName()).Release.Name || null;
-
-        if (featureRelease !== storyRelease && record.get('DirectChildrenCount') === 0) {
-            return this.getDescription();
-        }
-        return null; // no rule violation
-    //},
-    //getFilters: function() {
-    //    return Rally.data.wsapi.Filter.and([{
-    //        property:'DirectChildrenCount',
-    //        value: 0
-    //    },{
-    //        property: this._getFeatureName() + '.ObjectID',
-    //        operator: '>',
-    //        value: 0
-    //    }]);
+        var andFilters =  Rally.data.wsapi.Filter.and([{
+            property: this._getFeatureName() + '.ObjectID',
+            operator: '>',
+            value: 0
+        },{
+            property: 'DirectChildrenCount',
+            value: 0
+        }]);
+        return andFilters; //.and(orFilters);
     }
 });

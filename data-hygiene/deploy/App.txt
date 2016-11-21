@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Nov 07 2016 14:09:40 GMT-0700 (MST) -->
+    <!--  Build Date: Mon Nov 21 2016 11:47:52 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Nov 07 2016 14:09:40 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Mon Nov 21 2016 11:47:52 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 80553568139;
+        var CHECKSUM = 139824800926;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -595,6 +595,83 @@ Ext.define('Rally.technicalservices.FileUtilities', {
     }
 
 });
+Ext.define('CA.technicalservices.Toolbox', {
+    singleton: true,
+
+    fetchPortfolioItemTypes: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        Ext.create('Rally.data.wsapi.Store',{
+            model: 'typedefinition',
+            fetch:['TypePath','Ordinal','Name'],
+            filters: [{property:'TypePath',operator:'contains',value:'PortfolioItem/'}],
+            sorters: [{property:'Ordinal',direction:'ASC'}]
+        }).load({
+            callback: function(records,operation){
+                if (operation.wasSuccessful()){
+                    var portfolioItemArray = [];
+                    Ext.Array.each(records,function(rec){
+                        portfolioItemArray.push(rec.getData());
+                    });
+                    deferred.resolve(portfolioItemArray);
+                } else {
+                    var message = 'failed to load Portfolio Item Types ' + (operation.error && operation.error.errors.join(','));
+                    deferred.reject(message);
+                }
+            }
+        });
+        return deferred.promise;
+    },
+    fetchPortfolioItemStates: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        console.log('fetchPortfolioItemStates');
+        Ext.create('Rally.data.wsapi.Store',{
+            model: 'State',
+            fetch:['TypeDef','TypePath','OrderIndex','Name'],
+            filters: [{property:'Enabled',value: true}],
+            sorters: [{property:'OrderIndex',direction:'ASC'}]
+        }).load({
+            callback: function(records,operation){
+                if (operation.wasSuccessful()){
+                    console.log('states', records);
+                    var stateHash = {};
+                    Ext.Array.each(records, function(r){
+                        if (/^PortfolioItem/.test(r.get('TypeDef') && r.get('TypeDef').TypePath)){
+                            if (!stateHash[r.get('TypeDef').TypePath]){
+                                stateHash[r.get('TypeDef').TypePath] = [];
+                            }
+                            stateHash[r.get('TypeDef').TypePath].push(r.get('Name'));
+                        }
+                    });
+                    deferred.resolve(stateHash);
+                } else {
+                    var message = 'failed to load Portfolio Item Types ' + (operation.error && operation.error.errors.join(','));
+                    deferred.reject(message);
+                }
+            }
+        });
+
+        return deferred.promise;
+    },
+    fetchScheduleStates: function(){
+        var deferred = Ext.create('Deft.Deferred');
+
+        Rally.data.ModelFactory.getModel({
+            type: 'UserStory',
+            success: function(model) {
+                model.getField('ScheduleState').getAllowedValueStore().load({
+                    callback: function(records, operation, success) {
+                        var states = [];
+                        Ext.Array.each(records, function(allowedValue) {
+                            states.push(allowedValue.get('StringValue'));
+                        });
+                        deferred.resolve(states);
+                    }
+                });
+            }
+        });
+        return deferred.promise;
+    }
+});
 Ext.define('CA.techservices.validator.Validator',{
     alias: 'widget.tsvalidator',
 
@@ -642,24 +719,26 @@ Ext.define('CA.techservices.validator.Validator',{
     constructor: function(config) {
         Ext.apply(this,config);
 
-        var rules = [];
-
+        var rules = [],
+            rulesByType = {};
         Ext.Array.each(this.rules, function(rule){
             console.log('rule', rule);
             var name = rule.xtype;
             if ( !Ext.isEmpty(name) ) {
                 delete rule.xtype;
-                rules.push(Ext.createByAlias('widget.' + name, rule));
+                var ruleObj = Ext.createByAlias('widget.' + name, rule);
+                rulesByType[ruleObj.getModel()] = ruleObj;
+                rules.push(ruleObj);
             }
         });
-
         this.rules = rules;
+        this.rulesByType = rulesByType;
     },
 
     getRuleDescriptions: function() {
         var text = "<ul>";
 
-        Ext.Array.each(this.getActiveRules(), function(rule){
+        Ext.Array.each(this.getRules(), function(rule){
             var rule_description = rule.getDescription() || "";
             if ( !Ext.isEmpty(rule_description) ) {
                 text = text + "<li>" + rule_description + "</li>";
@@ -673,19 +752,14 @@ Ext.define('CA.techservices.validator.Validator',{
     getRules: function(){
         return this.rules;
     },
-
-    getActiveRules: function(){
-        return this.getRules();
-        //return Ext.Array.filter(this.getRules(),function(rule){
-        //    return rule.active;
-        //});
+    getRulesByModel: function(){
+       return this.rulesByType;
     },
-
     getFiltersByModel: function() {
         var me = this,
             filters_by_model = {};
 
-        Ext.Array.each(this.getActiveRules(), function(rule){
+        Ext.Array.each(this.getRules(), function(rule){
             var model = rule.getModel();
             var filters = rule.getFilters();
 
@@ -859,22 +933,68 @@ Ext.define('CA.techservices.validator.Validator',{
         return series;
     },
 
-    getFailedRecordsForRule: function(records, rule) {
-        var failed_records = [];
-        console.log('getFailedRecordsForRule', records, rule);
-        Ext.Array.each(records, function(record) {
-            var failure = rule.applyRuleToRecord(record);
-            if ( failure ) {
-                var texts = record.get('__ruleText') || [];
-                texts.push(failure);
-                record.set('__ruleText', texts);
-                failed_records.push(record);
-            }
+    //getFailedRecordsForRule: function(records, rule) {
+    //    var failed_records = [];
+    //    console.log('getFailedRecordsForRule', records, rule);
+    //    Ext.Array.each(records, function(record) {
+    //        var failure = rule.applyRuleToRecord(record);
+    //        if ( failure ) {
+    //            var texts = record.get('__ruleText') || [];
+    //            texts.push(failure);
+    //            record.set('__ruleText', texts);
+    //            failed_records.push(record);
+    //        }
+    //    });
+    //
+    //    return failed_records;
+    //},
+    fetchData: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var promises = [],
+            projectGroups = this.projectGroups,
+            me = this;
+
+        Ext.Array.each(this.rules, function(rule){
+           promises.push(me.fetchDataForProjectGroups(rule, projectGroups));
         });
 
-        return failed_records;
+        Deft.Promise.all(promises).then({
+            success:function(rows){
+                deferred.resolve(rows);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred;
     },
+    fetchDataForProjectGroups: function(rule, projectGroups){
+        var deferred = Ext.create('Deft.Deferred');
+        var promises = [];
 
+        Ext.Array.each(projectGroups, function(p){
+            promises.push(rule.apply(p));
+        });
+
+        Deft.Promise.all(promises).then({
+            success:function(results){
+                var idx = 0,
+                    hash = {
+                        ruleName: rule.getLabel(),
+                        type: rule.getModel()
+                    };
+
+                Ext.Array.each(projectGroups, function(pg){
+                    hash[pg.groupName] = results[idx++];
+                });
+                deferred.resolve(hash);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
+    },
     getRecordsByCategory: function(records, categories, category_field) {
         var me = this,
             record_hash = {};
@@ -889,21 +1009,65 @@ Ext.define('CA.techservices.validator.Validator',{
 
         return record_hash;
     },
+    getGridData: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var promises = [],
+            me = this;
 
-    getPrecheckResults: function() {
-        var promises = Ext.Array.map(this.getActiveRules(), function(rule){
-            return function() {
-                return rule.precheckRule();
-            };
+        Ext.Array.each(this.projectGroups, function(p){
+            promises.push(me.fetchGridRow(p));
         });
 
-        if ( promises.length === 0 ) {
-            return null;
-        }
-
-        return Deft.Chain.sequence(promises);
+        Deft.Promise.all(promises).then({
+            success:function(rows){
+                deferred.resolve(rows);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred;
     },
+    fetchGridRow: function(projectID){
+        var deferred = Ext.create('Deft.Deferred'),
+            me = this,
+            promises = [],
+            projectName = this.projectUtility.getProjectName(projectID),
+            projectRef= '/project/' + projectID,
+            rules = this.getRules();
 
+        Ext.Array.each(rules, function(rule){
+            var config = {
+                model: rule.getModel(),
+                fetch: rule.getFetchFields(),
+                filters: rule.getFilters(),
+                context: {project: projectRef, projectScopeDown: true}
+            };
+            console.log('fetchGridRow', config);
+            console.log('fetchGridRow', config.filters.toString());
+            promises.push(me._loadWsapiCount(config))
+        });
+
+        Deft.Promise.all(promises).then({
+            success: function(results){
+                var row = {
+                    bucket: projectName,
+                    bucketID: projectID,
+                };
+                for (var i=0; i < rules.length; i++){
+                    var name = rules[i].getLabel();
+                    row[name] = {ruleConfig: rules[i].getConfig(),
+                        value: results[i] || 0
+                    };
+                }
+                deferred.resolve(row);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred;
+    },
     _loadWsapiRecords: function(config) {
         var deferred = Ext.create('Deft.Deferred');
 
@@ -919,6 +1083,392 @@ Ext.define('CA.techservices.validator.Validator',{
             }
         });
         return deferred.promise;
+    },
+    _loadWsapiCount: function(config){
+        var deferred = Ext.create('Deft.Deferred');
+
+        config.pageSize = 1;
+        config.limit = 1;
+
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                if (operation.wasSuccessful()){
+                    deferred.resolve(operation.resultSet.totalRecords);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
+    }
+});
+Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
+    extend: 'Ext.form.field.Base',
+    alias: 'widget.tsstrategyexecutiongroupsettingsfield',
+    fieldSubTpl: '<div id="{id}" class="settings-grid"></div>',
+
+    cls: 'column-settings',
+
+    config: {
+        height: 150,
+        width: 500,
+
+        /*
+         * Name to display at the top of the grid column that shows the execution project
+         * (E.g., might want to display this as "Delivery" or "Delivery Teams")
+         */
+        executionColumnDisplayName: 'Execution',
+        /*
+         * Name to display at the top of the grid column that shows the strategy project
+         */
+        strategyColumnDisplayName: 'Strategy',
+        /*
+         * Name to display at the top of the grid column that shows the user's choice for group name
+         */
+        groupColumnDisplayName: 'Group Name',
+
+        emptyText: 'No Selections'
+
+    },
+
+    labelAlign: 'top',
+
+    onRender: function() {
+        this.callParent(arguments);
+
+        var decoded_value = [],
+            data = [];
+
+        if (this.initialConfig && this.initialConfig.value && !_.isEmpty(this.initialConfig.value)){
+            if (!Ext.isObject(this.initialConfig.value)){
+                decoded_value = Ext.JSON.decode(this.initialConfig.value);
+            } else {
+                decoded_value = this.initialConfig.value;
+            }
+        }
+        if ( Ext.isArray(decoded_value) ) { data = decoded_value; }
+
+        this._store = Ext.create('Ext.data.Store', {
+            fields: ['groupName','strategyProjectName','strategyProjectRef',
+                'executionProjectName','executionProjectRef'],
+            data: data
+        });
+
+        var container_width = this.config.width || 500;
+        if ( container_width < 400 ) { container_width = 400; }
+        var container_height = this.config.height || 150;
+        if ( container_height < 150 ) { container_height = 150; }
+
+        var container = Ext.create('Ext.container.Container',{
+            layout: { type:'hbox' },
+            renderTo: this.inputEl,
+            width: container_width,
+            height: container_height,
+            margin: 5
+        });
+
+        this._createGrid(container);
+        this._createButton(container);
+        this.fireEvent('ready', true);
+    },
+
+    setValue: function(value) {
+        this.callParent(arguments);
+        this._value = value;
+    },
+    /**
+     * When a form asks for the data this field represents,
+     * give it the name of this field and an array of objects representing the groups.
+     *
+     * Used when persisting the value of this field.
+     * @return {Object}
+     */
+    getSubmitData: function() {
+        var data = {};
+        data[this.name] = Ext.JSON.encode(this._buildSettingValue());
+        return data;
+    },
+
+    _createGrid: function(container) {
+        var gridWidth = Math.min(container.getWidth(true)-125,400);
+
+        this._grid = container.add({
+            xtype:'rallygrid',
+            width: gridWidth,
+            columnCfgs: this._getColumnCfgs(),
+            showPagingToolbar: false,
+            showRowActionsColumn: false,
+            enableRanking: false,
+            store: this._store,
+            emptyText: this.emptyText || 'No Selections',
+            editingConfig: {
+                publishMessages: false
+            }
+        });
+    },
+
+    _createButton: function(container) {
+
+        container.add({
+            xtype: 'rallybutton',
+            text: 'Add Group',
+            margin: '0 0 0 10',
+            listeners: {
+                scope: this,
+                click: function(){
+                    var store = this._grid.getStore();
+                    Ext.create('CA.agile.technicalservices.StrategyExecutionPickerDialog',{
+                        strategyLabel: 'Strategy',
+                        executionLabel: 'Execution',
+                        groupLabel: 'Group Name',
+
+                        listeners: {
+                            scope: this,
+                            select: function(dialog,value) {
+                                if ( Ext.isEmpty(value) ) { return; }
+
+                                var group_name = value.groupName;
+                                var strategy_project = value.strategyProject;
+                                var execution_project = value.executionProject;
+
+                                store.add({
+                                    groupName: group_name,
+                                    strategyProjectName: strategy_project.get('_refObjectName'),
+                                    strategyProjectRef: strategy_project.get('_ref'),
+                                    executionProjectName: execution_project.get('_refObjectName'),
+                                    executionProjectRef: execution_project.get('_ref')
+                                });
+                            }
+                        }
+                    });
+
+
+                }
+            }
+        });
+    },
+
+    _buildSettingValue: function() {
+        var mappings = [];
+        var store = this._grid.getStore();
+
+        store.each(function(record){
+            if ( record.get('strategyProjectRef') ) {
+                mappings.push(record.getData());
+            }
+        });
+
+        return mappings;
+    },
+
+    _removeProject: function(){
+        this.grid.getStore().remove(this.record);
+    },
+
+    _getColumnCfgs: function() {
+        var me = this;
+        return [{
+            xtype: 'rallyrowactioncolumn',
+            scope: this,
+            rowActionsFn: function(record){
+                return  [
+                    {text: 'Remove', record: record, handler: me._removeProject, grid: me._grid }
+                ];
+            }
+        },
+            {
+                dataIndex: 'groupName',
+                text: this.groupColumnDisplayName
+            },
+            {
+                dataIndex: 'strategyProjectName',
+                text: this.strategyColumnDisplayName,
+                flex: 1
+            },
+            {
+                dataIndex: 'executionProjectName',
+                text: this.executionColumnDisplayName,
+                flex: 1
+            }];
+    },
+
+    onDestroy: function() {
+        if (this._grid) {
+            this._grid.destroy();
+            delete this._grid;
+        }
+        this.callParent(arguments);
+    }
+});
+Ext.define('CA.agile.technicalservices.StrategyExecutionPickerDialog',{
+    extend: 'Rally.ui.dialog.Dialog',
+    alias: 'widget.tsstrategyexecutiondialog',
+
+    config: {
+        autoShow: true,
+        width: 200,
+        height: 200,
+        closable: false,
+        draggable: true,
+
+        title: 'Choose Projects',
+
+        selectionButtonText: 'Done',
+        strategyLabel: 'Strategy',
+        executionLabel: 'Execution',
+        groupLabel: 'Group Name'
+    },
+
+    constructor: function(config) {
+        this.mergeConfig(config);
+        this.callParent([this.config]);
+    },
+
+
+    initComponent: function() {
+        this.callParent(arguments);
+
+        this.addEvents(
+            /**
+             * @event select
+             * Fires when user clicks the done button after choosing the projects
+             * @param {CA.agile.technicalservices.StrategyExecutionPickerDialog} source the dialog
+             * @param {Object} the name, strategy project and execution project chosen.  Looks like:
+             *   { groupName: {String}, strategyProject: {Rally.data.wsapi.Model}, executionProject: {Rally.data.wsapi.Model} }
+             */
+            'select'
+        );
+
+        this.addCls(['chooserDialog', 'chooser-dialog']);
+    },
+
+    beforeRender: function() {
+        this.callParent(arguments);
+
+        this.addDocked({
+            xtype: 'toolbar',
+            dock: 'bottom',
+            padding: '0 0 10 0',
+            layout: {
+                type: 'hbox',
+                pack: 'center'
+            },
+            ui: 'footer',
+            items: [
+                {
+                    xtype: 'rallybutton',
+                    itemId: 'doneButton',
+                    text: this.selectionButtonText,
+                    cls: 'primary rly-small',
+                    scope: this,
+                    disabled: true,
+                    userAction: 'clicked done in dialog',
+                    handler: function() {
+                        this.fireEvent('select', this, this.getSelectedValues());
+                        this.close();
+                    }
+                },
+                {
+                    xtype: 'rallybutton',
+                    text: 'Cancel',
+                    cls: 'secondary rly-small',
+                    handler: this.close,
+                    scope: this,
+                    ui: 'link'
+                }
+            ]
+        });
+
+        if (this.introText) {
+            this.addDocked({
+                xtype: 'component',
+                componentCls: 'intro-panel',
+                html: this.introText
+            });
+        }
+
+        var container = this.add({
+            xtype: 'container',
+            itemId: 'selector_box'
+        });
+
+        this.addSelectors(container);
+    },
+
+    addSelectors: function(container) {
+        container.removeAll();
+
+        this.group_name_field = container.add({
+            xtype: 'rallytextfield',
+            fieldLabel: this.groupLabel,
+            labelAlign: 'top',
+            margin: 5,
+            listeners: {
+                scope: this,
+                change: this._enableDisableDoneButton
+            }
+        });
+
+        this.strategy_selector = container.add({
+            xtype: 'rallyprojectpicker',
+            showMostRecentlyUsedProjects: false,
+            workspace: Rally.getApp().getContext().getWorkspaceRef(),
+            fieldLabel: this.strategyLabel,
+            labelAlign: 'top',
+            margin: 5,
+            listeners: {
+                scope: this,
+                change: this._enableDisableDoneButton
+            }
+        });
+
+        this.execution_selector = container.add({
+            xtype: 'rallyprojectpicker',
+            showMostRecentlyUsedProjects: false,
+            workspace: Rally.getApp().getContext().getWorkspaceRef(),
+            fieldLabel: this.executionLabel,
+            labelAlign: 'top',
+            margin: 5,
+            listeners: {
+                scope: this,
+                change: this._enableDisableDoneButton
+            }
+        });
+    },
+
+    _enableDisableDoneButton: function() {
+        var execution_project = this.execution_selector && this.execution_selector.getValue();
+        var strategy_project = this.strategy_selector && this.strategy_selector.getValue();
+        var group_name = this.group_name_field && this.group_name_field.getValue();
+
+        if ( ! execution_project || ! strategy_project || Ext.isEmpty(group_name)) {
+            this._disableDoneButton();
+        } else {
+            this._enableDoneButton();
+        }
+    },
+
+    _enableDoneButton: function() {
+        this.down('#doneButton').setDisabled(false);
+    },
+
+    _disableDoneButton: function() {
+        this.down('#doneButton').setDisabled(true);
+    },
+
+    getSelectedValues: function() {
+        var execution_project = this.execution_selector && this.execution_selector.getSelectedRecord();
+        var strategy_project = this.strategy_selector && this.strategy_selector.getSelectedRecord();
+        var group_name = this.group_name_field && this.group_name_field.getValue();
+        if ( ! execution_project || ! strategy_project || Ext.isEmpty(group_name)) {
+            return;
+        }
+
+        return {
+            groupName: group_name,
+            strategyProject: strategy_project,
+            executionProject: execution_project
+        }
     }
 });
 Ext.define('CA.techservices.validation.BaseRule',{
@@ -943,11 +1493,8 @@ Ext.define('CA.techservices.validation.BaseRule',{
     constructor: function(config) {
         Ext.apply(this,config);
     },
-
-    shouldExecuteRule: true,
-
     getDescription: function() {
-        return this.description;
+        return this.description || this.getLabel();
     },
 
     getFetchFields: function() {
@@ -968,34 +1515,80 @@ Ext.define('CA.techservices.validation.BaseRule',{
             value: 0
         });
     },
-    // return false if the record doesn't match
-    // return string if record fails the rule
-    applyRuleToRecord: function(record) {
-        console.error('applyRuleToRecord not implemented in subclass ', this.self.getName());
-        throw 'applyRuleToRecord not implemented in subclass ' + this.self.getName();
-
-        return record;
+    _getFeatureName: function(){
+        return "Feature";
+        return this.portfolioItemTypes[0].TypePath.replace('PortfolioItem/','');
     },
-
-    /* override to allow the validator to check if the rule makes sense to run 
-     * (e.g., the field checker for fields that don't even exist)
-     * 
-     * resolve promise with text if problem -- the validator will return the text so
-     * it can be put into a description
-     * 
-     * The rule will still be executed unless this.shouldExecuteRule is set to false (and
-     * the rule class implements skipping because of this.shouldExecuteRule).
-     * 
-     * A rule class could be multi-part and only partially fail, so execution or not execution
-     * needs to be handled by the class itself.
-     * 
-     */
-    precheckRule: function() {
-        return null;
-    },
-
     getUserFriendlyRuleLabel: function() {
         return this.getLabel();
+    },
+    apply: function(pg){
+        console.log('apply', this.getLabel());
+        var deferred = Ext.create('Deft.Deferred'),
+            strategyConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                context: {project: pg.strategyProjectRef}
+            },
+            executionConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                context: {project: pg.executionProjectRef}
+            };
+
+        Deft.Promise.all([
+            this._loadWsapiCount(strategyConfig),
+            this._loadWsapiCount(executionConfig)
+        ]).then({
+            success: function(results){
+                deferred.resolve(Ext.Array.sum(results));
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
+    },
+
+    _loadWsapiCount: function(config){
+        var deferred = Ext.create('Deft.Deferred');
+
+        config.pageSize = 1;
+        config.limit = 1;
+        config.fetch = ['ObjectID'];
+
+        console.log('_loadWsapiCount', config);
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                console.log('_loadWsapiCount callback', records, operation);
+                if (operation.wasSuccessful()){
+                    deferred.resolve(operation.resultSet.totalRecords);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
+    },
+    _loadWsapiRecords: function(config) {
+        var deferred = Ext.create('Deft.Deferred');
+
+        if (!config.pageSize){
+            config.pageSize = 2000;
+        }
+        config.limit = Infinity;
+        console.log('_loadWsapiRecords', config);
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                console.log('_loadWsapiRecords callback', records, operation);
+                if (operation.wasSuccessful()){
+                    deferred.resolve(records);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
     }
 });
 Ext.define('CA.techservices.validation.PortfolioChildState',{
@@ -1017,17 +1610,6 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-        var msg = Ext.String.format(
-            this.description,
-            /[^\/]*$/.exec(this.getModel()),
-            /[^\/]*$/.exec(this.portfolioItemTypes[this.targetPortfolioLevel - 1].Name)
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Children']; //:summary[State]'];
-    },
     getLabel: function(){
         this.label = Ext.String.format(
             this.label,
@@ -1036,12 +1618,32 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
         );
         return this.label;
     },
-    applyRuleToRecord: function(record) {
-        if ( true ) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    getFilters: function(){
+        var childFilters = [],
+            childStates = this.portfolioItemStates[this.portfolioItemTypes[0].TypePath];
+        console.log('state', childStates, this.portfolioItemStates);
+        var noEntryState = "No Entry",
+            filters = [{
+            property: 'State.Name',
+            value: noEntryState
+        },{
+            property: 'State',
+            value: ''
+        }];
+        filters = Rally.data.wsapi.Filter.or(filters);
+
+
+        Ext.Array.each(childStates, function(state){
+
+            if (state !== noEntryState){
+                childFilters.push({
+                    property: 'Children.State.Name',
+                    value: state
+                });
+            }
+        });
+        childFilters = Rally.data.wsapi.Filter.or(childFilters);
+        return filters.and(childFilters);
     }
 });
 Ext.define('CA.techservices.validation.PortfolioFieldValue',{
@@ -1063,17 +1665,6 @@ Ext.define('CA.techservices.validation.PortfolioFieldValue',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-        var msg = Ext.String.format(
-            this.description,
-            this.portfolioItemTypes[this.targetPortfolioLevel].Name,
-            this.portfolioItemTypes[this.targetPortfolioLevel + 1].Name
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Name',this.targetField];
-    },
     getLabel: function(){
         var msg = Ext.String.format(
             this.label,
@@ -1082,23 +1673,11 @@ Ext.define('CA.techservices.validation.PortfolioFieldValue',{
         );
         return msg;
     },
-    applyRuleToRecord: function(record) {
-        if (!this.targetField){
-            return null;
-        }
-
-        var val = record.get(this.targetField);
-        if (val === this.targetFieldValue){
-            return this.getDescription();
-        }
-        return null;
-    },
     getFilters: function() {
         return Ext.create('Rally.data.wsapi.Filter', {
             property: this.targetField,
             value: this.targetFieldValue
         });
-//        return [];
     }
 });
 Ext.define('CA.techservices.validation.PortfolioOrphan',{
@@ -1119,20 +1698,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-        console.log('getLabel', this.portfolioItemTypes[this.targetPortfolioLevel].Name);
-         var msg = Ext.String.format(
-            this.label,
-            this.portfolioItemTypes[this.targetPortfolioLevel].Name,
-            this.portfolioItemTypes[this.targetPortfolioLevel + 1].Name
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Name','Parent'];
-    },
     getLabel: function(){
-        console.log('getLabel', this.portfolioItemTypes[this.targetPortfolioLevel].Name);
         var msg = Ext.String.format(
             this.label,
             this.portfolioItemTypes[this.targetPortfolioLevel].Name,
@@ -1140,12 +1706,8 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
         );
         return msg;
     },
-    applyRuleToRecord: function(record) {
-        if ( Ext.isEmpty(record.get('Parent') ) ) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    getFilters: function(){
+        return Rally.data.wsapi.Filter.fromQueryString("(Parent = \"\")");
     }
 });
 Ext.define('CA.techservices.validation.PortfolioProject',{
@@ -1167,16 +1729,6 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-        var msg = Ext.String.format(
-            this.description,
-            /[^\/]*$/.exec(this.portfolioItemTypes[this.targetPortfolioLevel].Name)
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Name','Project'];
-    },
     getLabel: function(){
         this.label = Ext.String.format(
            this.label,
@@ -1184,12 +1736,24 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         );
         return this.label;
     },
-    applyRuleToRecord: function(record) {
-        if ( !Ext.Array.contains(this.portfolioProjects, record.get('Project').ObjectID )) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    apply: function(pg){
+        console.log('filters to string', this.getFilters().toString());
+        var deferred = Ext.create('Deft.Deferred'),
+            executionConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                context: {project: pg.executionProjectRef}
+            };
+
+        this._loadWsapiCount(executionConfig).then({
+            success: function(count){
+                deferred.resolve(count);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
     }
 });
 Ext.define('CA.techservices.validation.PortfolioStateRule',{
@@ -1204,6 +1768,7 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
          */
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
+        executionState: "Execution",
 
         label: '{0} in "Execution" State missing Release',
         description: '{0} in "Execution" State missing Release'
@@ -1211,21 +1776,19 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-       return Ext.String.format(this.description, this.portfolioItemTypes[this.targetPortfolioLevel].Name);
-    },
-    getFetchFields: function() {
-        return ['State','Release']; //:summary[State]'];
-    },
     getLabel: function(){
         return Ext.String.format(this.label, this.portfolioItemTypes[this.targetPortfolioLevel].Name);
     },
-    applyRuleToRecord: function(record) {
-        if ( true ) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    getFilters: function(){
+        var executionState = this.executionState,
+            filters = [{
+            property: 'State.Name',
+            value: executionState
+        },{
+            property: 'Release',
+            value: ""
+        }];
+        return Rally.data.wsapi.Filter.and(filters);
     }
 });
 Ext.define('CA.techservices.validation.UserStoryFieldValue',{
@@ -1244,26 +1807,11 @@ Ext.define('CA.techservices.validation.UserStoryFieldValue',{
         label: 'Field Value'
     },
 
-    getFetchFields: function() {
-        return ['Name',this.targetField];
-    },
-    applyRuleToRecord: function(record) {
-        if (!this.targetField){
-            return null;
-        }
-
-        var val = record.get(this.targetField);
-        if (val === this.targetFieldValue){
-            return this.getDescription();
-        }
-        return null;
-    },
     getFilters: function() {
         return Ext.create('Rally.data.wsapi.Filter', {
             property: this.targetField,
             value: this.targetFieldValue
         });
-//        return [];
     }
 });
 Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
@@ -1281,38 +1829,70 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
         label: 'Stories with incorrect "Release" tag (does not match parent {0})',
         description: 'Stories with incorrect "Release" tag (does not match parent {0})'
     },
-    getFetchFields: function() {
-        return [this._getFeatureName(),'Release','Name','DirectChildrenCount'];
-    },
-    _getFeatureName: function(){
-        return this.portfolioItemTypes[0].TypePath.replace('PortfolioItem/','');
-    },
     getLabel: function(){
         return Ext.String.format(this.label, this.portfolioItemTypes[0].Name);
     },
-    getDescription: function(){
-        return Ext.String.format(this.description, this.portfolioItemTypes[0].Name);
+    apply: function(pg){
+
+        var deferred = Ext.create('Deft.Deferred'),
+            featureName = this._getFeatureName(),
+            strategyConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                fetch: ['Release','Name',featureName],
+                compact: false,
+                context: {project: pg.strategyProjectRef}
+            },
+            executionConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                fetch: ['Release','Name',featureName],
+                compact: false,
+                context: {project: pg.executionProjectRef}
+            };
+
+        Deft.Promise.all([
+            this._loadWsapiRecords(strategyConfig),
+            this._loadWsapiRecords(executionConfig)
+        ]).then({
+            success: function(results){
+                var records = _.flatten(results),
+                    count = 0;
+                Ext.Array.each(records, function(r){
+                    var release = r.get('Release') && r.get('Release').Name || null,
+                        featureRelease = r.get(featureName) && r.get(featureName).Release && r.get(featureName).Release.Name || null;
+                    if (release != featureRelease){
+                        count++;
+                    }
+                });
+                deferred.resolve(count);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
     },
-    applyRuleToRecord: function(record) {
+    getFilters: function() {
+        //var orFilters = Rally.data.wsapi.Filter.or([{
+        //    property: 'Release.ObjectID',
+        //    operator: '>',
+        //    value: 0
+        //},{
+        //    property: this._getFeatureName() + '.Release.ObjectID',
+        //    operator: '>',
+        //    value: 0
+        //}]);
 
-       var storyRelease = record.get('Release') && record.get('Release').Name || null,
-           featureRelease = record.get(this._getFeatureName()) && record.get(this._getFeatureName()).Release &&
-               record.get(this._getFeatureName()).Release.Name || null;
-
-        if (featureRelease !== storyRelease && record.get('DirectChildrenCount') === 0) {
-            return this.getDescription();
-        }
-        return null; // no rule violation
-    //},
-    //getFilters: function() {
-    //    return Rally.data.wsapi.Filter.and([{
-    //        property:'DirectChildrenCount',
-    //        value: 0
-    //    },{
-    //        property: this._getFeatureName() + '.ObjectID',
-    //        operator: '>',
-    //        value: 0
-    //    }]);
+        var andFilters =  Rally.data.wsapi.Filter.and([{
+            property: this._getFeatureName() + '.ObjectID',
+            operator: '>',
+            value: 0
+        },{
+            property: 'DirectChildrenCount',
+            value: 0
+        }]);
+        return andFilters; //.and(orFilters);
     }
 });
 Ext.define('CA.techservices.validation.StoryMissingRelease',{
@@ -1329,19 +1909,6 @@ Ext.define('CA.techservices.validation.StoryMissingRelease',{
         model: 'HierarchicalRequirement',
         label: 'Stories "in progress" or beyond, with missing "Release" tag',
         description: 'Stories "in progress" or beyond, with missing "Release" tag'
-    },
-    getFetchFields: function() {
-        return ['ScheduleState','Release'];
-    },
-    applyRuleToRecord: function(record) {
-
-        var idx = _.indexOf(this.scheduleStates, record.get('ScheduleState'));
-        if (idx >= _.indexOf(this.scheduleStates, "In-Progress")){
-            if (!record.get('Release')) {
-                return this.getDescription();
-            }
-        }
-        return null; // no rule violation
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
@@ -1369,33 +1936,12 @@ Ext.define('CA.techservices.validation.StoryOrphan',{
 
         label: 'Orphan Stories (no parent {1})'
     },
-    getModel:function(){
-        return this.model;
-    },
-    getDescription: function() {
-
-        var msg = Ext.String.format(
-            this.label,
-            this.portfolioItemTypes[0].Name
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Name','Parent','PortfolioItem'];
-    },
     getLabel: function(){
         var msg = Ext.String.format(
             this.label,
             this.portfolioItemTypes[0].Name
         );
         return msg;
-    },
-    applyRuleToRecord: function(record) {
-        if ( Ext.isEmpty(record.get('Parent') && Ext.isEmpty(record.get('PortfolioItem'))) ) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
@@ -1405,8 +1951,6 @@ Ext.define('CA.techservices.validation.StoryOrphan',{
             property: 'PortfolioItem',
             value: ""
         }]);
-
-//        return [];
     }
 });
 Ext.define('CA.techservices.validation.StoryProject',{
@@ -1427,12 +1971,27 @@ Ext.define('CA.techservices.validation.StoryProject',{
     getFetchFields: function() {
         return ['Name','Project'];
     },
-    applyRuleToRecord: function(record) {
-        if ( !Ext.Array.contains(this.storyProjects, record.get('Project').ObjectID )) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    apply: function(pg){
+
+        var deferred = Ext.create('Deft.Deferred'),
+            executionConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                context: {project: pg.strategyProjectRef}
+            };
+
+        this._loadWsapiCount(executionConfig).then({
+            success: function(count){
+                deferred.resolve(count);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
+    },
+    getFilters: function(){
+        return Rally.data.wsapi.Filter.fromQueryString("(ObjectID > 0)");
     }
 });
 Ext.define('CA.techservices.validation.StoryPlanEstimate',{
@@ -1449,19 +2008,6 @@ Ext.define('CA.techservices.validation.StoryPlanEstimate',{
         model: 'HierarchicalRequirement',
         label: 'User Stories "in progress" or beyond, without estimates',
         description: 'User Stories "in progress" or beyond, without estimates'
-    },
-    getFetchFields: function() {
-        return ['ScheduleState','PlanEstimate'];
-    },
-    applyRuleToRecord: function(record) {
-
-        var idx = _.indexOf(this.scheduleStates, record.get('ScheduleState'));
-        if (idx >= _.indexOf(this.scheduleStates, "In-Progress")){
-            if (!record.get('PlanEstimate') && record.get('PlanEstimate')!== 0) {
-                return this.getDescription();
-            }
-        }
-        return null; // no rule violation
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
@@ -1483,168 +2029,256 @@ Ext.define("data-hygiene", {
     integrationHeaders : {
         name : "data-hygiene"
     },
-    getSettingsFields: function() {
-        return [];
-    },
+
+    items: [
+        {xtype:'container',itemId:'selector_box', flex: 1, float: 'right'},
+        {xtype:'container',itemId:'chart_box', flex: 1},
+        {xtype:'container',itemId:'grid_box', flex: 1}
+    ],
+
     config: {
         defaultSettings: {
             portfolioAOPField: 'Ready',
             portfolioCRField: 'Ready',
-            userStoryCRField: 'Ready'
+            userStoryCRField: 'Ready',
+            projectGroups: []
         }
     },
 
-    scheduleStates: ['Defined','In-Progress','Completed','Accepted'],
+    scheduleStates: null,
+    portfolioItemTypes: null,
+    portfolioItemStates: null,
 
     launch: function() {
         // get any data model customizations ... then get the data and render the chart
-        this._fetchPortfolioItemTypes().then({
+        Deft.Promise.all([
+            CA.technicalservices.Toolbox.fetchPortfolioItemTypes(),
+            CA.technicalservices.Toolbox.fetchPortfolioItemStates(),
+            CA.technicalservices.Toolbox.fetchScheduleStates()
+        ]).then({
             success: this._initializeApp,
             failure: this._showErrorMsg,
             scope: this
         });
     },
-    _initializeApp: function(portfolioItemTypes){
-        this.logger.log('InitializeApp',portfolioItemTypes);
+    _initializeApp: function(results){
+        this.logger.log('InitializeApp',results);
 
-        this.portfolioItemTypes = portfolioItemTypes;
+        this.portfolioItemTypes = results[0];
+        this.portfolioItemStates = results[1];
+        this.scheduleStates = results[2];
 
         this._loadData();
     },
     _showErrorMsg: function(msg){
+        this.logger.log('_showErrorMsg', msg);
         Rally.ui.notify.Notifier.showError({message:msg});
     },
-    _fetchPortfolioItemTypes: function(){
-        var deferred = Ext.create('Deft.Deferred');
-        Ext.create('Rally.data.wsapi.Store',{
-            model: 'typedefinition',
-            fetch:['TypePath','Ordinal','Name'],
-            filters: [{property:'TypePath',operator:'contains',value:'PortfolioItem/'}],
-            sorters: [{property:'Ordinal',direction:'ASC'}]
-        }).load({
-            callback: function(records,operation){
-                if (operation.wasSuccessful()){
-                    var portfolioItemArray = [];
-                    Ext.Array.each(records,function(rec){
-                        portfolioItemArray.push(rec.getData());
-                    });
-                    deferred.resolve(portfolioItemArray);
-                } else {
-                    var message = 'failed to load Portfolio Item Types ' + (operation.error && operation.error.errors.join(','));
-                    deferred.reject(message);
-                }
-            }
-        });
-        return deferred;
-    },
+
     _loadData: function(){
         var me = this;
 
+        this.getExportBox().removeAll();
+        this.getChartBox().removeAll();
+        this.getGridBox().removeAll();
+
         this.validator = this._createValidator();
-
-        Deft.Chain.pipeline([
-            function() {
-                me.setLoading("Gathering data...");
-                return me.validator.gatherData();
+        this.logger.log('_loadData')
+        this.validator.fetchData().then({
+            success: function(data){
+                this.logger.log('_loadData.success', data);
+                this._addChart(data);
+                this._buildGrids(data);
             },
-            function() {
-                me.setLoading("Analyzing data...");
-                return me.validator.getChartData();
-            }
-        ]).then({
-            scope: this,
-            success: function(results) {
-                this.logger.log('_loadData results', results);
-
-                //if ( results.categories && results.categories.length === 0 ) {
-                //    // if no results - erase the underlying, previously rendered chart
-                //    this.down('#display_box').removeAll();
-                //    Ext.Msg.alert('','No violations found with current selections.');
-                //    return;
-                //}
-                //
-                this.logger.log('this.display_rows', this.validator.recordsByModel);
-                //
-                this._buildGrid(results);
-                //this._makeChart(results);
-            },
-            failure: function(msg) {
-                Ext.Msg.alert('Problem loading data', msg);
-            }
+            failure: this._showErrorMsg,
+            scope: this
         }).always(function() { me.setLoading(false); });
     },
 
-    _buildGrid: function(chartData){
-        var hash = this._reprocessChartData(chartData);
+    _addChart: function(chartData){
+        this.logger.log('addChart', chartData);
+        //series: [{
+        //    name: ruleName,
+        //    data: [49.9, 71.5, 106.4, 129.2, 144.0, 176.0, 135.6, 148.5, 216.4, 194.1, 95.6, 54.4]
+        //    stack: type
 
-        Ext.Object.each(hash, function(type, obj){
+        var projects = _.map(this.getProjectGroups(), function(pg){
+            return pg.groupName;
+        });
+
+        var ruleHash = {},
+            types = [];
+
+        Ext.Array.each(chartData, function(cd){
+            if (!Ext.Array.contains(types, cd.type)){
+                types.push(cd.type);
+            }
+            if (!ruleHash[cd.ruleName]){
+                ruleHash[cd.ruleName] = {};
+            }
+            //if (!ruleHash[cd.ruleName][cd.type]){
+            //    ruleHash[cd.ruleName][cd.type] = {};
+            //}
+            Ext.Array.each(projects, function(p){
+                //ruleHash[cd.ruleName][cd.type][p] = cd[p] || 0;
+                ruleHash[cd.ruleName][p] = cd[p] || 0;
+            });
+        });
+
+        this.logger.log('chartData', ruleHash);
+
+        var series = [],
+            categories = Ext.Object.getKeys(ruleHash);
+
+        Ext.Array.each(projects, function(p){
+          //  Ext.Array.each(types, function(t){
+                var values = [];
+                Ext.Array.each(categories, function(r){
+                    values.push(ruleHash[r] && ruleHash[r][p] || 0);
+                });
+                series.push({
+                    name: p,
+                    data: values
+                   // stack: t
+                });
+           // });
+        });
+
+        this.logger.log('chartData', series, projects);
+        this.getChartBox().add({
+            xtype: 'rallychart',
+            chartConfig: {
+                chart: {
+                    type: 'bar',
+                    height: 500,
+                    marginLeft: Math.max(this.getWidth()/2, 1)
+                },
+                title: {
+                    text: null
+                },
+                xAxis: {
+                    title: {
+                        text: null
+                    },
+                    tickPlacement: 'on'
+                },
+                yAxis: [
+                    {
+                        title: {
+                            text: 'Artifact Count'
+                        }
+                    }
+                ],
+                plotOptions: {
+                    bar: {
+                        stacking: 'normal'
+                    }
+                }
+            },
+            chartData: {
+                series: series,
+                categories: categories
+            }
+        });
+
+    },
+    export: function(){
+        var grids = this.query('rallygrid');
+        this.logger.log('export', grids);
+
+        var csv = [];
+        var keys = ['type','ruleName'],
+            headers = ['Artifact Type', 'Rule'];
+
+        Ext.Array.each(this.getProjectGroups(), function(pg){
+            keys.push(pg.groupName);
+            headers.push(pg.groupName);
+        });
+
+        Ext.Array.each(grids, function(grid){
+            var records = grid.getStore() && grid.getStore().getRange();
+            if (records && records.length > 0){
+                csv.push(Ext.String.format("{0} Data Hygiene", this.getUserFriendlyName(records[0].get('type'))));
+                csv.push(headers.join(','));
+                Ext.Array.each(records, function(r){
+                    var row = Ext.Array.map(keys, function(key){
+                        var v = r.get(key) || 0;
+                        if (key == 'type'){
+                            return this.getUserFriendlyName(v);
+                        }
+
+
+                        if (Ext.isString(v)){
+                            return Ext.String.format("\"{0}\"", v.toString().replace(/"/g, "\"\""));
+                        }
+                        return v;
+
+                    }, this);
+                    csv.push(row.join(','));
+                }, this);
+            }
+        }, this);
+        csv = csv.join('\r\n');
+        this.logger.log('export csv', csv);
+
+        var fileName = Ext.String.format("data-hygiene-{0}.csv",Rally.util.DateTime.format(new Date(), 'Y-m-d-h-i-s'));
+        Rally.technicalservices.FileUtilities.saveCSVToFile(csv, fileName);
+    },
+    addExportButton: function(){
+
+        var btn = this.getExportBox().add({
+            xtype: 'rallybutton',
+            iconCls: 'icon-export',
+            cls: 'secondary rly-small'
+        });
+        btn.on('click', this.export, this);
+    },
+    _buildGrids: function(data){
+
+       this.addExportButton();
+
+       var typeHash = {};
+        Ext.Array.each(data, function(d){
+            if (!typeHash[d.type]){
+                typeHash[d.type] = [];
+            }
+            typeHash[d.type].push(d);
+        });
+        this.logger.log('_buildGrids', data, typeHash);
+        Ext.Object.each(typeHash, function(type, obj){
             this._buildSubGrid(type, obj);
         }, this);
 
     },
-    _reprocessChartData: function(chartData){
-        var hash = {};
-        this.logger.log('_reprocessChartData', chartData);
-        Ext.Array.each(chartData.series, function(s){
-            if (!hash[s.stack]){
-                hash[s.stack] = {};
-            }
-            if (!hash[s.stack][s.name]){
-                hash[s.stack][s.name] = {};
-                Ext.Array.each(chartData.categories, function(c){
-                    hash[s.stack][s.name][c] = 0;
-                });
-            }
-            Ext.Array.each(s.records, function(r){
-                var proj = (r.get('Project').Name);
-                hash[s.stack][s.name][proj]++;
-            });
-        });
-        this.logger.log('_reprocessChartData', hash);
-        return hash;
-    },
-    _buildSubGrid: function(type, obj){
-        var data = [],
-            fields = [],
-            projectNames = [];
-        Ext.Object.each(obj, function(rule, projects){
-            var row = projects;
-            row.name = Ext.String.format(rule, type);
-            projectNames = Ext.Object.getKeys(projects);
-            data.push(row);
-        });
+    _buildSubGrid: function(type, data){
+        var fields = [];
 
-        var fields = [{
-            name: 'name', displayName: Ext.String.format('{0} level data hygiene', this.getUserFriendlyName(type))
-        }];
-        Ext.Array.each(projectNames, function(pn){
-            fields.push({
-                name: pn,
-                displayName: pn
-            });
-        });
-
+        if (data && data.length > 0){
+            fields = Ext.Object.getKeys(data[0]);
+        }
+        this.logger.log('_buildSubGrid', data, fields);
         var store = Ext.create('Rally.data.custom.Store',{
             data: data,
             fields: fields
         });
 
         var columnCfgs = [{
-            dataIndex: 'name',
+            dataIndex: 'ruleName',
             text: Ext.String.format('{0} level data hygiene', this.getUserFriendlyName(type)),
             flex: 1
         }];
 
         Ext.Array.each(fields, function(f){
-            if (f.name !== 'name') {
+            if (f !== 'type' && f !== 'ruleName') {
                 columnCfgs.push({
-                    dataIndex: f.name,
-                    text: f.displayName
+                    dataIndex: f,
+                    text: f,
+                    align: 'center'
                 });
             }
         });
 
-        this.add({
+        this.getGridBox().add({
             xtype: 'rallygrid',
             store: store,
             margin: 20,
@@ -1678,20 +2312,43 @@ Ext.define("data-hygiene", {
     getStoryCRField: function(){
         return this.getSetting('userStoryCRField');
     },
+    getProjectGroups: function(){
+        var groups = [],
+            group_setting = this.getSetting('projectGroups');
+        if (!Ext.isArray(group_setting)){
+            groups = Ext.JSON.decode(group_setting);
+        } else {
+            groups = group_setting;
+        }
+        return groups;
+    },
+    getGridBox: function(){
+        return this.down('#grid_box');
+    },
+    getChartBox: function(){
+        return this.down('#chart_box');
+    },
+    getExportBox: function(){
+        return this.down('#selector_box');
+    },
     _createValidator: function() {
         var rules = [{
             xtype:'tsportfolio_orphan',
             targetPortfolioLevel: 1,
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_project',
             targetPortfolioLevel: 1,
             portfolioItemTypes: this.portfolioItemTypes,
-            portfolioProjects: []
+            portfolioProjects: [],
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_childstate',
             targetPortfolioLevel: 1,
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 1,
@@ -1699,7 +2356,8 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioAOPField(),
             label: '{0}s with "AOP Approved" field checked',
             description: '{0}s with "AOP Approved" field checked',
-            targetFieldValue: true
+            targetFieldValue: true,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 1,
@@ -1707,16 +2365,18 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioAOPField(),
             label: '{0}s with "AOP Approved" field <b>not</b> checked',
             description: '{0}s with "AOP Approved" field <b>not</b> checked',
-            targetFieldValue: false
+            targetFieldValue: false,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsportfolio_orphan',
             targetPortfolioLevel: 0,
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_project',
             targetPortfolioLevel: 0,
             portfolioItemTypes: this.portfolioItemTypes,
-            portfolioProjects: []
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 0,
@@ -1724,7 +2384,8 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioCRField(),
             label: '{0}s with "CR" field checked',
             description: '{0}s with "CR" field checked',
-            targetFieldValue: true
+            targetFieldValue: true,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 0,
@@ -1732,40 +2393,47 @@ Ext.define("data-hygiene", {
             targetField: this.getPortfolioCRField(),
             label: '{0}s with "CR" field <b>not</b> checked',
             description: '{0}s with "CR" field <b>not</b> checked',
-            targetFieldValue: false
+            targetFieldValue: false,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_orphan',
-            portfolioItemTypes: this.portfolioItemTypes
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_project',
-            storyProjects: []
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_planestimate',
-            scheduleStates: this.scheduleStates
+            scheduleStates: this.scheduleStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_missingrelease',
-            scheduleStates: this.scheduleStates
+            scheduleStates: this.scheduleStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_mismatchedrelease',
             portfolioItemTypes: this.portfolioItemTypes,
-            scheduleStates: this.scheduleStates
+            scheduleStates: this.scheduleStates,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsstory_fieldvalue',
             targetField: this.getStoryCRField(),
             label: 'User Stories with "CR" field checked',
             description: 'User Stories with "CR" field checked',
-            targetFieldValue: true
+            targetFieldValue: true,
+            projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsstory_fieldvalue',
             targetField: this.getStoryCRField(),
             label: 'User Stories with "CR" field <b>not</b> checked',
             description: 'User Stories with "CR" field <b>not</b> checked',
-            targetFieldValue: false
+            targetFieldValue: false,
+            projectGroups: this.getProjectGroups()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
                 rules: rules,
-                fetchFields: ['FormattedID','ObjectID','Project']
+                projectGroups: this.getProjectGroups()
         });
         return validator;
     },
@@ -1803,6 +2471,9 @@ Ext.define("data-hygiene", {
             _isNotHidden: function(field) {
                 return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
             }
+        },{
+            name: 'projectGroups',
+            xtype:'tsstrategyexecutiongroupsettingsfield'
         }];
     },
      getOptions: function() {
@@ -1820,12 +2491,6 @@ Ext.define("data-hygiene", {
     },
     isExternal: function(){
         return typeof(this.getAppId()) == 'undefined';
-    },
-    //onSettingsUpdate:  Override
-    onSettingsUpdate: function (settings){
-        this.logger.log('onSettingsUpdate',settings);
-        // Ext.apply(this, settings);
-        this.launch();
     }
 });
 
