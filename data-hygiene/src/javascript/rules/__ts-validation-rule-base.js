@@ -20,11 +20,8 @@ Ext.define('CA.techservices.validation.BaseRule',{
     constructor: function(config) {
         Ext.apply(this,config);
     },
-
-    shouldExecuteRule: true,
-
     getDescription: function() {
-        return this.description;
+        return this.description || this.getLabel();
     },
 
     getFetchFields: function() {
@@ -45,33 +42,79 @@ Ext.define('CA.techservices.validation.BaseRule',{
             value: 0
         });
     },
-    // return false if the record doesn't match
-    // return string if record fails the rule
-    applyRuleToRecord: function(record) {
-        console.error('applyRuleToRecord not implemented in subclass ', this.self.getName());
-        throw 'applyRuleToRecord not implemented in subclass ' + this.self.getName();
-
-        return record;
+    _getFeatureName: function(){
+       // return "Feature";
+        return this.portfolioItemTypes[0].TypePath.replace('PortfolioItem/','');
     },
-
-    /* override to allow the validator to check if the rule makes sense to run 
-     * (e.g., the field checker for fields that don't even exist)
-     * 
-     * resolve promise with text if problem -- the validator will return the text so
-     * it can be put into a description
-     * 
-     * The rule will still be executed unless this.shouldExecuteRule is set to false (and
-     * the rule class implements skipping because of this.shouldExecuteRule).
-     * 
-     * A rule class could be multi-part and only partially fail, so execution or not execution
-     * needs to be handled by the class itself.
-     * 
-     */
-    precheckRule: function() {
-        return null;
-    },
-
     getUserFriendlyRuleLabel: function() {
         return this.getLabel();
+    },
+    apply: function(pg){
+        console.log('apply', this.getLabel());
+        var deferred = Ext.create('Deft.Deferred'),
+            strategyConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                context: {project: pg.strategyProjectRef}
+            },
+            executionConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                context: {project: pg.executionProjectRef}
+            };
+
+        Deft.Promise.all([
+            this._loadWsapiCount(strategyConfig),
+            this._loadWsapiCount(executionConfig)
+        ]).then({
+            success: function(results){
+                deferred.resolve(Ext.Array.sum(results));
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
+    },
+
+    _loadWsapiCount: function(config){
+        var deferred = Ext.create('Deft.Deferred');
+
+        config.pageSize = 1;
+        config.limit = 1;
+        config.fetch = ['ObjectID'];
+
+        console.log('_loadWsapiCount', config);
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                console.log('_loadWsapiCount callback', records, operation);
+                if (operation.wasSuccessful()){
+                    deferred.resolve(operation.resultSet.totalRecords);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
+    },
+    _loadWsapiRecords: function(config) {
+        var deferred = Ext.create('Deft.Deferred');
+
+        if (!config.pageSize){
+            config.pageSize = 2000;
+        }
+        config.limit = Infinity;
+        console.log('_loadWsapiRecords', config);
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                console.log('_loadWsapiRecords callback', records, operation);
+                if (operation.wasSuccessful()){
+                    deferred.resolve(records);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
     }
 });

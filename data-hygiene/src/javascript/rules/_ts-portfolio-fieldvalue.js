@@ -17,17 +17,6 @@ Ext.define('CA.techservices.validation.PortfolioFieldValue',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-        var msg = Ext.String.format(
-            this.description,
-            this.portfolioItemTypes[this.targetPortfolioLevel].Name,
-            this.portfolioItemTypes[this.targetPortfolioLevel + 1].Name
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Name',this.targetField];
-    },
     getLabel: function(){
         var msg = Ext.String.format(
             this.label,
@@ -36,22 +25,10 @@ Ext.define('CA.techservices.validation.PortfolioFieldValue',{
         );
         return msg;
     },
-    applyRuleToRecord: function(record) {
-        if (!this.targetField){
-            return null;
-        }
-
-        var val = record.get(this.targetField);
-        if (val === this.targetFieldValue){
-            return this.getDescription();
-        }
-        return null;
-    },
     getFilters: function() {
         return Ext.create('Rally.data.wsapi.Filter', {
             property: this.targetField,
             value: this.targetFieldValue
         });
-//        return [];
     }
 });

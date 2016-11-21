@@ -45,24 +45,26 @@ Ext.define('CA.techservices.validator.Validator',{
     constructor: function(config) {
         Ext.apply(this,config);
 
-        var rules = [];
-
+        var rules = [],
+            rulesByType = {};
         Ext.Array.each(this.rules, function(rule){
             console.log('rule', rule);
             var name = rule.xtype;
             if ( !Ext.isEmpty(name) ) {
                 delete rule.xtype;
-                rules.push(Ext.createByAlias('widget.' + name, rule));
+                var ruleObj = Ext.createByAlias('widget.' + name, rule);
+                rulesByType[ruleObj.getModel()] = ruleObj;
+                rules.push(ruleObj);
             }
         });
-
         this.rules = rules;
+        this.rulesByType = rulesByType;
     },
 
     getRuleDescriptions: function() {
         var text = "<ul>";
 
-        Ext.Array.each(this.getActiveRules(), function(rule){
+        Ext.Array.each(this.getRules(), function(rule){
             var rule_description = rule.getDescription() || "";
             if ( !Ext.isEmpty(rule_description) ) {
                 text = text + "<li>" + rule_description + "</li>";
@@ -76,19 +78,14 @@ Ext.define('CA.techservices.validator.Validator',{
     getRules: function(){
         return this.rules;
     },
-
-    getActiveRules: function(){
-        return this.getRules();
-        //return Ext.Array.filter(this.getRules(),function(rule){
-        //    return rule.active;
-        //});
+    getRulesByModel: function(){
+       return this.rulesByType;
     },
-
     getFiltersByModel: function() {
         var me = this,
             filters_by_model = {};
 
-        Ext.Array.each(this.getActiveRules(), function(rule){
+        Ext.Array.each(this.getRules(), function(rule){
             var model = rule.getModel();
             var filters = rule.getFilters();
 
@@ -262,22 +259,68 @@ Ext.define('CA.techservices.validator.Validator',{
         return series;
     },
 
-    getFailedRecordsForRule: function(records, rule) {
-        var failed_records = [];
-        console.log('getFailedRecordsForRule', records, rule);
-        Ext.Array.each(records, function(record) {
-            var failure = rule.applyRuleToRecord(record);
-            if ( failure ) {
-                var texts = record.get('__ruleText') || [];
-                texts.push(failure);
-                record.set('__ruleText', texts);
-                failed_records.push(record);
-            }
+    //getFailedRecordsForRule: function(records, rule) {
+    //    var failed_records = [];
+    //    console.log('getFailedRecordsForRule', records, rule);
+    //    Ext.Array.each(records, function(record) {
+    //        var failure = rule.applyRuleToRecord(record);
+    //        if ( failure ) {
+    //            var texts = record.get('__ruleText') || [];
+    //            texts.push(failure);
+    //            record.set('__ruleText', texts);
+    //            failed_records.push(record);
+    //        }
+    //    });
+    //
+    //    return failed_records;
+    //},
+    fetchData: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var promises = [],
+            projectGroups = this.projectGroups,
+            me = this;
+
+        Ext.Array.each(this.rules, function(rule){
+           promises.push(me.fetchDataForProjectGroups(rule, projectGroups));
         });
 
-        return failed_records;
+        Deft.Promise.all(promises).then({
+            success:function(rows){
+                deferred.resolve(rows);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred;
     },
+    fetchDataForProjectGroups: function(rule, projectGroups){
+        var deferred = Ext.create('Deft.Deferred');
+        var promises = [];
 
+        Ext.Array.each(projectGroups, function(p){
+            promises.push(rule.apply(p));
+        });
+
+        Deft.Promise.all(promises).then({
+            success:function(results){
+                var idx = 0,
+                    hash = {
+                        ruleName: rule.getLabel(),
+                        type: rule.getModel()
+                    };
+
+                Ext.Array.each(projectGroups, function(pg){
+                    hash[pg.groupName] = results[idx++];
+                });
+                deferred.resolve(hash);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
+    },
     getRecordsByCategory: function(records, categories, category_field) {
         var me = this,
             record_hash = {};
@@ -292,21 +335,65 @@ Ext.define('CA.techservices.validator.Validator',{
 
         return record_hash;
     },
+    getGridData: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var promises = [],
+            me = this;
 
-    getPrecheckResults: function() {
-        var promises = Ext.Array.map(this.getActiveRules(), function(rule){
-            return function() {
-                return rule.precheckRule();
-            };
+        Ext.Array.each(this.projectGroups, function(p){
+            promises.push(me.fetchGridRow(p));
         });
 
-        if ( promises.length === 0 ) {
-            return null;
-        }
-
-        return Deft.Chain.sequence(promises);
+        Deft.Promise.all(promises).then({
+            success:function(rows){
+                deferred.resolve(rows);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred;
     },
+    fetchGridRow: function(projectID){
+        var deferred = Ext.create('Deft.Deferred'),
+            me = this,
+            promises = [],
+            projectName = this.projectUtility.getProjectName(projectID),
+            projectRef= '/project/' + projectID,
+            rules = this.getRules();
 
+        Ext.Array.each(rules, function(rule){
+            var config = {
+                model: rule.getModel(),
+                fetch: rule.getFetchFields(),
+                filters: rule.getFilters(),
+                context: {project: projectRef, projectScopeDown: true}
+            };
+            console.log('fetchGridRow', config);
+            console.log('fetchGridRow', config.filters.toString());
+            promises.push(me._loadWsapiCount(config))
+        });
+
+        Deft.Promise.all(promises).then({
+            success: function(results){
+                var row = {
+                    bucket: projectName,
+                    bucketID: projectID,
+                };
+                for (var i=0; i < rules.length; i++){
+                    var name = rules[i].getLabel();
+                    row[name] = {ruleConfig: rules[i].getConfig(),
+                        value: results[i] || 0
+                    };
+                }
+                deferred.resolve(row);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred;
+    },
     _loadWsapiRecords: function(config) {
         var deferred = Ext.create('Deft.Deferred');
 
@@ -316,6 +403,23 @@ Ext.define('CA.techservices.validator.Validator',{
                     var result = {};
                     result[config.model] = records;
                     deferred.resolve(result);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
+    },
+    _loadWsapiCount: function(config){
+        var deferred = Ext.create('Deft.Deferred');
+
+        config.pageSize = 1;
+        config.limit = 1;
+
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                if (operation.wasSuccessful()){
+                    deferred.resolve(operation.resultSet.totalRecords);
                 } else {
                     deferred.reject(operation.error.errors.join(','));
                 }

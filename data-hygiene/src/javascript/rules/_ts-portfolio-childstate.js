@@ -17,17 +17,6 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
-    getDescription: function() {
-        var msg = Ext.String.format(
-            this.description,
-            /[^\/]*$/.exec(this.getModel()),
-            /[^\/]*$/.exec(this.portfolioItemTypes[this.targetPortfolioLevel - 1].Name)
-        );
-        return msg;
-    },
-    getFetchFields: function() {
-        return ['Children']; //:summary[State]'];
-    },
     getLabel: function(){
         this.label = Ext.String.format(
             this.label,
@@ -36,11 +25,31 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
         );
         return this.label;
     },
-    applyRuleToRecord: function(record) {
-        if ( true ) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    getFilters: function(){
+        var childFilters = [],
+            childStates = this.portfolioItemStates[this.portfolioItemTypes[0].TypePath];
+        console.log('state', childStates, this.portfolioItemStates);
+        var noEntryState = "No Entry",
+            filters = [{
+            property: 'State.Name',
+            value: noEntryState
+        },{
+            property: 'State',
+            value: ''
+        }];
+        filters = Rally.data.wsapi.Filter.or(filters);
+
+
+        Ext.Array.each(childStates, function(state){
+
+            if (state !== noEntryState){
+                childFilters.push({
+                    property: 'Children.State.Name',
+                    value: state
+                });
+            }
+        });
+        childFilters = Rally.data.wsapi.Filter.or(childFilters);
+        return filters.and(childFilters);
     }
 });

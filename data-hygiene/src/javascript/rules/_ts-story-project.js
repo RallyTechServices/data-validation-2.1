@@ -16,11 +16,26 @@ Ext.define('CA.techservices.validation.StoryProject',{
     getFetchFields: function() {
         return ['Name','Project'];
     },
-    applyRuleToRecord: function(record) {
-        if ( !Ext.Array.contains(this.storyProjects, record.get('Project').ObjectID )) {
-            return this.getDescription();
-        } else {
-            return null; // no rule violation
-        }
+    apply: function(pg){
+
+        var deferred = Ext.create('Deft.Deferred'),
+            executionConfig = {
+                model: this.getModel(),
+                filters: this.getFilters(),
+                context: {project: pg.strategyProjectRef}
+            };
+
+        this._loadWsapiCount(executionConfig).then({
+            success: function(count){
+                deferred.resolve(count);
+            },
+            failure: function(msg){
+                deferred.reject(msg);
+            }
+        });
+        return deferred.promise;
+    },
+    getFilters: function(){
+        return Rally.data.wsapi.Filter.fromQueryString("(ObjectID > 0)");
     }
 });
