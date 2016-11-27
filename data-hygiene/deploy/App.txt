@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Nov 21 2016 11:48:29 GMT-0700 (MST) -->
+    <!--  Build Date: Sun Nov 27 2016 10:52:14 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Nov 21 2016 11:48:29 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Sun Nov 27 2016 10:52:14 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 139832099114;
+        var CHECKSUM = 157585749535;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -948,14 +948,14 @@ Ext.define('CA.techservices.validator.Validator',{
     //
     //    return failed_records;
     //},
-    fetchData: function(){
+    fetchData: function(baseFilters){
         var deferred = Ext.create('Deft.Deferred');
         var promises = [],
             projectGroups = this.projectGroups,
             me = this;
 
         Ext.Array.each(this.rules, function(rule){
-           promises.push(me.fetchDataForProjectGroups(rule, projectGroups));
+           promises.push(me.fetchDataForProjectGroups(rule, projectGroups, baseFilters));
         });
 
         Deft.Promise.all(promises).then({
@@ -968,12 +968,12 @@ Ext.define('CA.techservices.validator.Validator',{
         });
         return deferred;
     },
-    fetchDataForProjectGroups: function(rule, projectGroups){
+    fetchDataForProjectGroups: function(rule, projectGroups, baseFilters){
         var deferred = Ext.create('Deft.Deferred');
         var promises = [];
 
         Ext.Array.each(projectGroups, function(p){
-            promises.push(rule.apply(p));
+            promises.push(rule.apply(p, baseFilters));
         });
 
         Deft.Promise.all(promises).then({
@@ -1111,21 +1111,21 @@ Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
 
     config: {
         height: 150,
-        width: 500,
+        width: 700,
 
         /*
          * Name to display at the top of the grid column that shows the execution project
          * (E.g., might want to display this as "Delivery" or "Delivery Teams")
          */
-        executionColumnDisplayName: 'Execution',
+        executionColumnDisplayName: 'Delivery Team',
         /*
          * Name to display at the top of the grid column that shows the strategy project
          */
-        strategyColumnDisplayName: 'Strategy',
+        strategyColumnDisplayName: 'Portfolio Team',
         /*
          * Name to display at the top of the grid column that shows the user's choice for group name
          */
-        groupColumnDisplayName: 'Group Name',
+        groupColumnDisplayName: 'Program Name',
 
         emptyText: 'No Selections'
 
@@ -1190,7 +1190,7 @@ Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
     },
 
     _createGrid: function(container) {
-        var gridWidth = Math.min(container.getWidth(true)-125,400);
+        var gridWidth = Math.max(container.getWidth(true)-125,400);
 
         this._grid = container.add({
             xtype:'rallygrid',
@@ -1211,16 +1211,16 @@ Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
 
         container.add({
             xtype: 'rallybutton',
-            text: 'Add Group',
+            text: 'Add Program',
             margin: '0 0 0 10',
             listeners: {
                 scope: this,
                 click: function(){
                     var store = this._grid.getStore();
                     Ext.create('CA.agile.technicalservices.StrategyExecutionPickerDialog',{
-                        strategyLabel: 'Strategy',
-                        executionLabel: 'Execution',
-                        groupLabel: 'Group Name',
+                        strategyLabel: 'Portfolio Team Root',
+                        executionLabel: 'Delivery Team Root',
+                        groupLabel: 'Program Name',
 
                         listeners: {
                             scope: this,
@@ -1522,18 +1522,25 @@ Ext.define('CA.techservices.validation.BaseRule',{
     getUserFriendlyRuleLabel: function() {
         return this.getLabel();
     },
-    apply: function(pg){
-        console.log('apply', this.getLabel());
+    apply: function(pg, baseFilters){
+
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters = filters.and(baseFilters);
+        }
+        console.log('apply.label:', this.getLabel());
+        console.log('apply.filters', this.getFilters().toString(), filters.toString(), baseFilters && baseFilters.toString());
+
         var deferred = Ext.create('Deft.Deferred'),
             strategyConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.strategyProjectRef}
+                filters: filters,
+                context: {project: pg.strategyProjectRef, projectScopeDown: true}
             },
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.executionProjectRef}
+                filters: filters,
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
         Deft.Promise.all([
@@ -1736,13 +1743,18 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         );
         return this.label;
     },
-    apply: function(pg){
-        console.log('filters to string', this.getFilters().toString());
+    apply: function(pg, baseFilters){
+        //console.log('filters to string', this.getFilters().toString());
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters = filters.and(baseFilters);
+        }
+
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.executionProjectRef}
+                filters: filters,
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
         this._loadWsapiCount(executionConfig).then({
@@ -1832,23 +1844,28 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
     getLabel: function(){
         return Ext.String.format(this.label, this.portfolioItemTypes[0].Name);
     },
-    apply: function(pg){
+    apply: function(pg, baseFilters){
+
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters= filters.and(baseFilters);
+        }
 
         var deferred = Ext.create('Deft.Deferred'),
             featureName = this._getFeatureName(),
             strategyConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
+                filters: filters,
                 fetch: ['Release','Name',featureName],
                 compact: false,
-                context: {project: pg.strategyProjectRef}
+                context: {project: pg.strategyProjectRef, projectScopeDown: true}
             },
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
+                filters: filters,
                 fetch: ['Release','Name',featureName],
                 compact: false,
-                context: {project: pg.executionProjectRef}
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
         Deft.Promise.all([
@@ -1874,16 +1891,6 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
         return deferred.promise;
     },
     getFilters: function() {
-        //var orFilters = Rally.data.wsapi.Filter.or([{
-        //    property: 'Release.ObjectID',
-        //    operator: '>',
-        //    value: 0
-        //},{
-        //    property: this._getFeatureName() + '.Release.ObjectID',
-        //    operator: '>',
-        //    value: 0
-        //}]);
-
         var andFilters =  Rally.data.wsapi.Filter.and([{
             property: this._getFeatureName() + '.ObjectID',
             operator: '>',
@@ -1971,13 +1978,16 @@ Ext.define('CA.techservices.validation.StoryProject',{
     getFetchFields: function() {
         return ['Name','Project'];
     },
-    apply: function(pg){
-
+    apply: function(pg, baseFilters){
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters = filters.and(baseFilters);
+        }
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.strategyProjectRef}
+                filters: filters,
+                context: {project: pg.strategyProjectRef, projectScopeDown: true}
             };
 
         this._loadWsapiCount(executionConfig).then({
@@ -2041,7 +2051,11 @@ Ext.define("data-hygiene", {
             portfolioAOPField: 'Ready',
             portfolioCRField: 'Ready',
             userStoryCRField: 'Ready',
-            projectGroups: []
+            projectGroups: [],
+            query: null,
+            lastUpdateDateAfter: null,
+            creationDateAfter: null,
+            orFilter: false
         }
     },
 
@@ -2050,6 +2064,7 @@ Ext.define("data-hygiene", {
     portfolioItemStates: null,
 
     launch: function() {
+        this.logger.log('launch Settings:', this.getSettings());
         // get any data model customizations ... then get the data and render the chart
         Deft.Promise.all([
             CA.technicalservices.Toolbox.fetchPortfolioItemTypes(),
@@ -2068,6 +2083,10 @@ Ext.define("data-hygiene", {
         this.portfolioItemStates = results[1];
         this.scheduleStates = results[2];
 
+        //if (this.getProjectGroups() || this.getProjectGroups().length === 0){
+        //    this.getExportBox().
+        //}
+
         this._loadData();
     },
     _showErrorMsg: function(msg){
@@ -2083,8 +2102,9 @@ Ext.define("data-hygiene", {
         this.getGridBox().removeAll();
 
         this.validator = this._createValidator();
-        this.logger.log('_loadData')
-        this.validator.fetchData().then({
+        var filters = this.getFilters();
+        this.logger.log('_loadData', filters && filters.toString());
+        this.validator.fetchData(filters).then({
             success: function(data){
                 this.logger.log('_loadData.success', data);
                 this._addChart(data);
@@ -2094,14 +2114,51 @@ Ext.define("data-hygiene", {
             scope: this
         }).always(function() { me.setLoading(false); });
     },
+    getFilters: function(){
+        if (this.getSetting('query')){
+            this.logger.log('getFilters queryString provided: ', this.getSetting('query'));
+            return Rally.data.wsapi.Filter.fromQueryString(this.getSetting('query'));
+        }
 
+        var filters = [];
+        if (this.getSetting('lastUpdateDateAfter')){
+            this.logger.log('getFilters lastUpdateDateAfter provided: ', this.getSetting('lastUpdateDateAfter'));
+            filters.push({
+                property: 'LastUpdateDate',
+                operator: '>=',
+                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('lastUpdateDateAfter')))
+            });
+        }
+
+        if (this.getSetting('creationDateAfter')){
+            this.logger.log('getFilters creationDateAfter provided: ', this.getSetting('creationDateAfter'));
+            filters.push({
+                property: 'CreationDate',
+                operator: '>=',
+                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('creationDateAfter')))
+            });
+        }
+        if (filters.length > 1){
+            var orFilters = this.getSetting('orFilter');
+            if (orFilters === "true" || orFilters === true){
+                filters = Rally.data.wsapi.Filter.or(filters);
+            } else {
+                filters = Rally.data.wsapi.Filter.and(filters);
+            }
+        }
+
+        if (filters.length === 1){
+            return Ext.create('Rally.data.wsapi.Filter',filters[0]);
+        }
+
+        if (filters.length === 0){
+            return null;
+        }
+        return filters;
+    },
     _addChart: function(chartData){
         this.logger.log('addChart', chartData);
-        //series: [{
-        //    name: ruleName,
-        //    data: [49.9, 71.5, 106.4, 129.2, 144.0, 176.0, 135.6, 148.5, 216.4, 194.1, 95.6, 54.4]
-        //    stack: type
-
+      
         var projects = _.map(this.getProjectGroups(), function(pg){
             return pg.groupName;
         });
@@ -2438,9 +2495,13 @@ Ext.define("data-hygiene", {
         return validator;
     },
     getSettingsFields: function(){
-        var labelWidth = 150;
+        var labelWidth = 175,
+            orFilter = this.getSetting('orFilter') === "true" || this.getSetting('orFilter') === true;
 
         return [{
+            xtype: 'container',
+            html: '<div class="rally-upper-bold">Field Configuration</div>',
+        },{
             xtype: 'rallyfieldcombobox',
             name: 'portfolioAOPField',
             model: 'PortfolioItem',
@@ -2472,8 +2533,67 @@ Ext.define("data-hygiene", {
                 return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
             }
         },{
+            xtype: 'container',
+            margin: '25 0 0 0',
+            html: '<div class="rally-upper-bold">Filter by Date</div>',
+        },{
+            xtype: 'rallydatefield',
+            fieldLabel: 'Items created after',
+            labelAlign: 'right',
+            labelWidth: labelWidth,
+            name: 'creationDateAfter'
+        },{
+            xtype: 'radiogroup',
+            fieldLabel: ' ',
+            // Arrange radio buttons into two columns, distributed vertically
+            columns: 2,
+            vertical: true,
+            width: 200,
+            items: [
+                { boxLabel: 'AND', name: 'orFilter', inputValue: false, checked: !orFilter },
+                { boxLabel: 'OR', name: 'orFilter', inputValue: true, checked: orFilter }
+            ],
+        }, {
+            xtype: 'rallydatefield',
+            labelAlign: 'right',
+            labelWidth: labelWidth,
+            fieldLabel: 'Items updated after',
+            name: 'lastUpdateDateAfter'
+        }, {
+            xtype: 'container',
+            margin: '25 0 0 0',
+            html: '<div class="rally-upper-bold">Programs</div>'
+        },{
             name: 'projectGroups',
-            xtype:'tsstrategyexecutiongroupsettingsfield'
+            xtype:'tsstrategyexecutiongroupsettingsfield',
+            fieldLabel: ' '
+        },{
+            xtype: 'textarea',
+            fieldLabel: '<div class="rally-upper-bold">Filter by Query</div><em>Query fields must apply to all item types.  This filter will override the date filters above for all item types.</em>',
+            labelAlign: 'top',
+            name: 'query',
+            anchor: '100%',
+            cls: 'query-field',
+            margin: '25 70 0 0',
+            plugins: [
+                {
+                    ptype: 'rallyhelpfield',
+                    helpId: 194
+                },
+                'rallyfieldvalidationui'
+            ],
+            validateOnBlur: false,
+            validateOnChange: false,
+            validator: function(value) {
+                try {
+                    if (value) {
+                        Rally.data.wsapi.Filter.fromQueryString(value);
+                    }
+                    return true;
+                } catch (e) {
+                    return e.message;
+                }
+            }
         }];
     },
      getOptions: function() {
@@ -2519,6 +2639,21 @@ Ext.define("data-hygiene", {
     margin-top: 25px;
     margin-right: 5px;
     cursor: pointer;
+}
+
+.rally-upper-bold {
+    color: #222;
+    cursor: default;
+    font-family: ProximaNovaSemiBold,Helvetica,Arial;
+    font-size: 12px;
+    font-weight: normal;
+    line-height: 12px;
+    text-transform: uppercase;
+}
+
+.rally-panel-header {
+    font-size: 10px;
+    background-color: #e6e6e6;
 }
     </style>
 

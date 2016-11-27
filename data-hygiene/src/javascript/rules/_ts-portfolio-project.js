@@ -24,13 +24,18 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         );
         return this.label;
     },
-    apply: function(pg){
-        console.log('filters to string', this.getFilters().toString());
+    apply: function(pg, baseFilters){
+        //console.log('filters to string', this.getFilters().toString());
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters = filters.and(baseFilters);
+        }
+
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.executionProjectRef}
+                filters: filters,
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
         this._loadWsapiCount(executionConfig).then({
