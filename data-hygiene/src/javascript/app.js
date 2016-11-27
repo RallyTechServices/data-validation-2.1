@@ -9,7 +9,7 @@ Ext.define("data-hygiene", {
     },
 
     items: [
-        {xtype:'container',itemId:'selector_box', flex: 1, float: 'right'},
+        {xtype:'container',itemId:'selector_box', flex: 1, float: 'right', tpl: '<div class="no-data-container"><div class="secondary-message">{message}</div></div>'},
         {xtype:'container',itemId:'chart_box', flex: 1},
         {xtype:'container',itemId:'grid_box', flex: 1}
     ],
@@ -34,6 +34,12 @@ Ext.define("data-hygiene", {
     launch: function() {
         this.logger.log('launch Settings:', this.getSettings());
         // get any data model customizations ... then get the data and render the chart
+
+        if (!this.getProjectGroups() || this.getProjectGroups().length === 0){
+            this.getSelectorBox().update({message: "Please use the App Settings to configure at least 1 Program."});
+            return;
+        }
+
         Deft.Promise.all([
             CA.technicalservices.Toolbox.fetchPortfolioItemTypes(),
             CA.technicalservices.Toolbox.fetchPortfolioItemStates(),
