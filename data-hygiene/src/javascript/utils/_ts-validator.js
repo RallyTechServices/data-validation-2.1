@@ -274,14 +274,14 @@ Ext.define('CA.techservices.validator.Validator',{
     //
     //    return failed_records;
     //},
-    fetchData: function(){
+    fetchData: function(baseFilters){
         var deferred = Ext.create('Deft.Deferred');
         var promises = [],
             projectGroups = this.projectGroups,
             me = this;
 
         Ext.Array.each(this.rules, function(rule){
-           promises.push(me.fetchDataForProjectGroups(rule, projectGroups));
+           promises.push(me.fetchDataForProjectGroups(rule, projectGroups, baseFilters));
         });
 
         Deft.Promise.all(promises).then({
@@ -294,12 +294,12 @@ Ext.define('CA.techservices.validator.Validator',{
         });
         return deferred;
     },
-    fetchDataForProjectGroups: function(rule, projectGroups){
+    fetchDataForProjectGroups: function(rule, projectGroups, baseFilters){
         var deferred = Ext.create('Deft.Deferred');
         var promises = [];
 
         Ext.Array.each(projectGroups, function(p){
-            promises.push(rule.apply(p));
+            promises.push(rule.apply(p, baseFilters));
         });
 
         Deft.Promise.all(promises).then({

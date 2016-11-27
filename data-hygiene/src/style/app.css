@@ -15,3 +15,18 @@
     margin-right: 5px;
     cursor: pointer;
 }
+
+.rally-upper-bold {
+    color: #222;
+    cursor: default;
+    font-family: ProximaNovaSemiBold,Helvetica,Arial;
+    font-size: 12px;
+    font-weight: normal;
+    line-height: 12px;
+    text-transform: uppercase;
+}
+
+.rally-panel-header {
+    font-size: 10px;
+    background-color: #e6e6e6;
+}

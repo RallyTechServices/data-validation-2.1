@@ -7,21 +7,21 @@ Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
 
     config: {
         height: 150,
-        width: 500,
+        width: 700,
 
         /*
          * Name to display at the top of the grid column that shows the execution project
          * (E.g., might want to display this as "Delivery" or "Delivery Teams")
          */
-        executionColumnDisplayName: 'Execution',
+        executionColumnDisplayName: 'Delivery Team',
         /*
          * Name to display at the top of the grid column that shows the strategy project
          */
-        strategyColumnDisplayName: 'Strategy',
+        strategyColumnDisplayName: 'Portfolio Team',
         /*
          * Name to display at the top of the grid column that shows the user's choice for group name
          */
-        groupColumnDisplayName: 'Group Name',
+        groupColumnDisplayName: 'Program Name',
 
         emptyText: 'No Selections'
 
@@ -86,7 +86,7 @@ Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
     },
 
     _createGrid: function(container) {
-        var gridWidth = Math.min(container.getWidth(true)-125,400);
+        var gridWidth = Math.max(container.getWidth(true)-125,400);
 
         this._grid = container.add({
             xtype:'rallygrid',
@@ -107,16 +107,16 @@ Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
 
         container.add({
             xtype: 'rallybutton',
-            text: 'Add Group',
+            text: 'Add Program',
             margin: '0 0 0 10',
             listeners: {
                 scope: this,
                 click: function(){
                     var store = this._grid.getStore();
                     Ext.create('CA.agile.technicalservices.StrategyExecutionPickerDialog',{
-                        strategyLabel: 'Strategy',
-                        executionLabel: 'Execution',
-                        groupLabel: 'Group Name',
+                        strategyLabel: 'Portfolio Team Root',
+                        executionLabel: 'Delivery Team Root',
+                        groupLabel: 'Program Name',
 
                         listeners: {
                             scope: this,

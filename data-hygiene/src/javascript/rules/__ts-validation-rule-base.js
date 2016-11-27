@@ -49,18 +49,25 @@ Ext.define('CA.techservices.validation.BaseRule',{
     getUserFriendlyRuleLabel: function() {
         return this.getLabel();
     },
-    apply: function(pg){
-        console.log('apply', this.getLabel());
+    apply: function(pg, baseFilters){
+
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters = filters.and(baseFilters);
+        }
+        console.log('apply.label:', this.getLabel());
+        console.log('apply.filters', this.getFilters().toString(), filters.toString(), baseFilters && baseFilters.toString());
+
         var deferred = Ext.create('Deft.Deferred'),
             strategyConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.strategyProjectRef}
+                filters: filters,
+                context: {project: pg.strategyProjectRef, projectScopeDown: true}
             },
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.executionProjectRef}
+                filters: filters,
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
         Deft.Promise.all([

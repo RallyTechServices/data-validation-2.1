@@ -16,13 +16,16 @@ Ext.define('CA.techservices.validation.StoryProject',{
     getFetchFields: function() {
         return ['Name','Project'];
     },
-    apply: function(pg){
-
+    apply: function(pg, baseFilters){
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters = filters.and(baseFilters);
+        }
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
-                context: {project: pg.strategyProjectRef}
+                filters: filters,
+                context: {project: pg.strategyProjectRef, projectScopeDown: true}
             };
 
         this._loadWsapiCount(executionConfig).then({

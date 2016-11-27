@@ -19,7 +19,11 @@ Ext.define("data-hygiene", {
             portfolioAOPField: 'Ready',
             portfolioCRField: 'Ready',
             userStoryCRField: 'Ready',
-            projectGroups: []
+            projectGroups: [],
+            query: null,
+            lastUpdateDateAfter: null,
+            creationDateAfter: null,
+            orFilter: false
         }
     },
 
@@ -28,6 +32,7 @@ Ext.define("data-hygiene", {
     portfolioItemStates: null,
 
     launch: function() {
+        this.logger.log('launch Settings:', this.getSettings());
         // get any data model customizations ... then get the data and render the chart
         Deft.Promise.all([
             CA.technicalservices.Toolbox.fetchPortfolioItemTypes(),
@@ -46,6 +51,10 @@ Ext.define("data-hygiene", {
         this.portfolioItemStates = results[1];
         this.scheduleStates = results[2];
 
+        //if (this.getProjectGroups() || this.getProjectGroups().length === 0){
+        //    this.getExportBox().
+        //}
+
         this._loadData();
     },
     _showErrorMsg: function(msg){
@@ -61,8 +70,9 @@ Ext.define("data-hygiene", {
         this.getGridBox().removeAll();
 
         this.validator = this._createValidator();
-        this.logger.log('_loadData')
-        this.validator.fetchData().then({
+        var filters = this.getFilters();
+        this.logger.log('_loadData', filters && filters.toString());
+        this.validator.fetchData(filters).then({
             success: function(data){
                 this.logger.log('_loadData.success', data);
                 this._addChart(data);
@@ -72,14 +82,51 @@ Ext.define("data-hygiene", {
             scope: this
         }).always(function() { me.setLoading(false); });
     },
+    getFilters: function(){
+        if (this.getSetting('query')){
+            this.logger.log('getFilters queryString provided: ', this.getSetting('query'));
+            return Rally.data.wsapi.Filter.fromQueryString(this.getSetting('query'));
+        }
 
+        var filters = [];
+        if (this.getSetting('lastUpdateDateAfter')){
+            this.logger.log('getFilters lastUpdateDateAfter provided: ', this.getSetting('lastUpdateDateAfter'));
+            filters.push({
+                property: 'LastUpdateDate',
+                operator: '>=',
+                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('lastUpdateDateAfter')))
+            });
+        }
+
+        if (this.getSetting('creationDateAfter')){
+            this.logger.log('getFilters creationDateAfter provided: ', this.getSetting('creationDateAfter'));
+            filters.push({
+                property: 'CreationDate',
+                operator: '>=',
+                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('creationDateAfter')))
+            });
+        }
+        if (filters.length > 1){
+            var orFilters = this.getSetting('orFilter');
+            if (orFilters === "true" || orFilters === true){
+                filters = Rally.data.wsapi.Filter.or(filters);
+            } else {
+                filters = Rally.data.wsapi.Filter.and(filters);
+            }
+        }
+
+        if (filters.length === 1){
+            return Ext.create('Rally.data.wsapi.Filter',filters[0]);
+        }
+
+        if (filters.length === 0){
+            return null;
+        }
+        return filters;
+    },
     _addChart: function(chartData){
         this.logger.log('addChart', chartData);
-        //series: [{
-        //    name: ruleName,
-        //    data: [49.9, 71.5, 106.4, 129.2, 144.0, 176.0, 135.6, 148.5, 216.4, 194.1, 95.6, 54.4]
-        //    stack: type
-
+      
         var projects = _.map(this.getProjectGroups(), function(pg){
             return pg.groupName;
         });
@@ -416,9 +463,13 @@ Ext.define("data-hygiene", {
         return validator;
     },
     getSettingsFields: function(){
-        var labelWidth = 150;
+        var labelWidth = 175,
+            orFilter = this.getSetting('orFilter') === "true" || this.getSetting('orFilter') === true;
 
         return [{
+            xtype: 'container',
+            html: '<div class="rally-upper-bold">Field Configuration</div>',
+        },{
             xtype: 'rallyfieldcombobox',
             name: 'portfolioAOPField',
             model: 'PortfolioItem',
@@ -450,8 +501,67 @@ Ext.define("data-hygiene", {
                 return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
             }
         },{
+            xtype: 'container',
+            margin: '25 0 0 0',
+            html: '<div class="rally-upper-bold">Filter by Date</div>',
+        },{
+            xtype: 'rallydatefield',
+            fieldLabel: 'Items created after',
+            labelAlign: 'right',
+            labelWidth: labelWidth,
+            name: 'creationDateAfter'
+        },{
+            xtype: 'radiogroup',
+            fieldLabel: ' ',
+            // Arrange radio buttons into two columns, distributed vertically
+            columns: 2,
+            vertical: true,
+            width: 200,
+            items: [
+                { boxLabel: 'AND', name: 'orFilter', inputValue: false, checked: !orFilter },
+                { boxLabel: 'OR', name: 'orFilter', inputValue: true, checked: orFilter }
+            ],
+        }, {
+            xtype: 'rallydatefield',
+            labelAlign: 'right',
+            labelWidth: labelWidth,
+            fieldLabel: 'Items updated after',
+            name: 'lastUpdateDateAfter'
+        }, {
+            xtype: 'container',
+            margin: '25 0 0 0',
+            html: '<div class="rally-upper-bold">Programs</div>'
+        },{
             name: 'projectGroups',
-            xtype:'tsstrategyexecutiongroupsettingsfield'
+            xtype:'tsstrategyexecutiongroupsettingsfield',
+            fieldLabel: ' '
+        },{
+            xtype: 'textarea',
+            fieldLabel: '<div class="rally-upper-bold">Filter by Query</div><em>Query fields must apply to all item types.  This filter will override the date filters above for all item types.</em>',
+            labelAlign: 'top',
+            name: 'query',
+            anchor: '100%',
+            cls: 'query-field',
+            margin: '25 70 0 0',
+            plugins: [
+                {
+                    ptype: 'rallyhelpfield',
+                    helpId: 194
+                },
+                'rallyfieldvalidationui'
+            ],
+            validateOnBlur: false,
+            validateOnChange: false,
+            validator: function(value) {
+                try {
+                    if (value) {
+                        Rally.data.wsapi.Filter.fromQueryString(value);
+                    }
+                    return true;
+                } catch (e) {
+                    return e.message;
+                }
+            }
         }];
     },
      getOptions: function() {

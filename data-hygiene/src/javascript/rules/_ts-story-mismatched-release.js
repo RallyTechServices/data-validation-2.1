@@ -16,23 +16,28 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
     getLabel: function(){
         return Ext.String.format(this.label, this.portfolioItemTypes[0].Name);
     },
-    apply: function(pg){
+    apply: function(pg, baseFilters){
+
+        var filters = this.getFilters();
+        if (baseFilters){
+            filters= filters.and(baseFilters);
+        }
 
         var deferred = Ext.create('Deft.Deferred'),
             featureName = this._getFeatureName(),
             strategyConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
+                filters: filters,
                 fetch: ['Release','Name',featureName],
                 compact: false,
-                context: {project: pg.strategyProjectRef}
+                context: {project: pg.strategyProjectRef, projectScopeDown: true}
             },
             executionConfig = {
                 model: this.getModel(),
-                filters: this.getFilters(),
+                filters: filters,
                 fetch: ['Release','Name',featureName],
                 compact: false,
-                context: {project: pg.executionProjectRef}
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
         Deft.Promise.all([
@@ -58,16 +63,6 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
         return deferred.promise;
     },
     getFilters: function() {
-        //var orFilters = Rally.data.wsapi.Filter.or([{
-        //    property: 'Release.ObjectID',
-        //    operator: '>',
-        //    value: 0
-        //},{
-        //    property: this._getFeatureName() + '.Release.ObjectID',
-        //    operator: '>',
-        //    value: 0
-        //}]);
-
         var andFilters =  Rally.data.wsapi.Filter.and([{
             property: this._getFeatureName() + '.ObjectID',
             operator: '>',
