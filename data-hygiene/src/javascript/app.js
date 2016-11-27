@@ -36,7 +36,7 @@ Ext.define("data-hygiene", {
         // get any data model customizations ... then get the data and render the chart
 
         if (!this.getProjectGroups() || this.getProjectGroups().length === 0){
-            this.getSelectorBox().update({message: "Please use the App Settings to configure at least 1 Program."});
+            this.down('#selector_box').update({message: "Please use the App Settings to configure at least 1 Program."});
             return;
         }
 
