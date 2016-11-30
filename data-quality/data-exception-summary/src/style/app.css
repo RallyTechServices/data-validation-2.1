@@ -56,3 +56,15 @@
     font-family: ProximaNovaBold, Helvetica, Arial;
     font-size: 12px;
 }
+.x-column-header.dashboard-red {
+    background-color: #F2D3D0;
+    color: #B81B10;
+}
+.x-column-header.dashboard-green {
+    background-color: #e3f9e9;
+    color: #1E7C00;
+}
+.x-column-header.dashboard-yellow {
+    background-color: #FFEDBF;
+    color: #FF8200;
+}

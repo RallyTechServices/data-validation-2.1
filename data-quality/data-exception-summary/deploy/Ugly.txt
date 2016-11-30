@@ -3,10 +3,10 @@
 <head>
     <title>Data Exception Drilldown App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Wed Nov 16 2016 20:40:50 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Nov 30 2016 16:09:42 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Nov 16 2016 20:40:50 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Wed Nov 30 2016 16:09:42 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -82,7 +82,18 @@
     font-family: ProximaNovaBold, Helvetica, Arial;
     font-size: 12px;
 }
-
+.x-column-header.dashboard-red {
+    background-color: #F2D3D0;
+    color: #B81B10;
+}
+.x-column-header.dashboard-green {
+    background-color: #e3f9e9;
+    color: #1E7C00;
+}
+.x-column-header.dashboard-yellow {
+    background-color: #FFEDBF;
+    color: #FF8200;
+}
     </style>
 
 </head>
