@@ -29,10 +29,11 @@ Ext.define('CA.technicalservices.dataquality.common.BaseRule',{
     detailFetchFields: null,
 
     constructor: function(config) {
-        console.log('beforeconfig', config, this);
         this.initialConfig = config;
         Ext.apply(this,config);
-        console.log('afterconfig', config, this);
+    },
+    getUseRallyGrid: function(){
+        return false;
     },
     getFeatureName: function(){
         return this.portfolioItemTypes && this.portfolioItemTypes.length > 1 &&
@@ -91,5 +92,24 @@ Ext.define('CA.technicalservices.dataquality.common.BaseRule',{
             operator:'>',
             value: 0
         });
+    },
+    getDetailFilters: function(){
+        return this.getFilters();
+    },
+    _loadWsapiRecords: function(config) {
+        var deferred = Ext.create('Deft.Deferred');
+
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                if (operation.wasSuccessful()){
+                    var result = {};
+                    result[config.model] = records;
+                    deferred.resolve(records);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
     }
 });

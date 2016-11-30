@@ -41,14 +41,15 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
             ancestry = this.projectHash[projectID] && this.projectHash[projectID].ancestors;
 
         if (!ancestry){
-            ancestry = [projectID];
+            console.log('ancestry parent', ancestry, parent);
+            ancestry = [Number(projectID)];
             if (parent){
                 do {
                     ancestry.unshift(parent);
                     parent = this.projectHash[parent] &&
                         this.projectHash[parent].Parent &&
                         this.projectHash[parent].Parent.ObjectID || null;
-
+                    console.log('projectID ancestry parent',projectID, ancestry, parent);
                 } while (parent);
             }
             this.projectHash[projectID].ancestors = ancestry;
@@ -95,5 +96,20 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
             children.push(projectID);
         }
         return children;
+    },
+    getAllChildren: function(projectID){
+        var children = []
+            projectID = Number(projectID);
+
+        Ext.Object.each(this.projectHash, function(key, data){
+            var ancestry = this.getAncestry(key);
+
+            if (Ext.Array.contains(ancestry, projectID)){
+                children.push(Number(key));
+            }
+        }, this);
+
+       return children;
     }
+
 });

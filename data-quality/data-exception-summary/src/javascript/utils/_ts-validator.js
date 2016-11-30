@@ -52,7 +52,7 @@ Ext.define('CA.techservices.validator.Validator',{
 
         Ext.Array.each(this.rules, function(rule){
 
-            var name = rule.xtype || 'tsrule_base';
+            var name = rule.exceptionClass || 'tsrule_base';
             if ( !Ext.isEmpty(name) ) {
                 delete rule.xtype;
                 rules.push(Ext.createByAlias('widget.' + name, rule));
@@ -63,6 +63,18 @@ Ext.define('CA.techservices.validator.Validator',{
     },
     getRules: function(){
         return this.rules;
+    },
+    getRule: function(ruleName){
+        var rule = null,
+            label = ruleName && ruleName.ruleConfig && ruleName.ruleConfig.label;
+
+        Ext.Array.each(this.getRules(), function(r){
+            if (r.label === label){
+                rule = r;
+                return false;
+            }
+        });
+        return rule;
     },
     /**
      * getGridData
@@ -107,10 +119,11 @@ Ext.define('CA.techservices.validator.Validator',{
         var deferred = Ext.create('Deft.Deferred'),
             me = this,
             promises = [],
+            projectUtility = this.projectUtility,
             projectName = this.projectUtility.getProjectName(projectID),
             projectRef= '/project/' + projectID,
             rules = this.getRules();
-        console.log('rules', rules);
+
         Ext.Array.each(rules, function(rule){
             var config = {
                 model: rule.getModel(),
@@ -118,10 +131,12 @@ Ext.define('CA.techservices.validator.Validator',{
                 filters: rule.getFilters(),
                 context: {project: projectRef, projectScopeDown: true}
             };
-            console.log('fetchGridRow', config);
-            console.log('fetchGridRow', config.filters.toString());
-            promises.push(me._loadWsapiCount(config))
-        });
+            if (!rule.exceptionClass){
+                promises.push(me._loadWsapiCount(config));
+            } else {
+                promises.push(rule.getCount(projectID, projectUtility));
+            }
+        }, this);
 
         Deft.Promise.all(promises).then({
             success: function(results){
@@ -131,8 +146,9 @@ Ext.define('CA.techservices.validator.Validator',{
                 };
                 for (var i=0; i < rules.length; i++){
                     var name = rules[i].getLabel();
-                    row[name] = {ruleConfig: rules[i].getConfig(),
-                                 value: results[i] || 0
+                    row[name] = {
+                        ruleConfig: rules[i].getConfig(),
+                        value: results[i] || 0
                     };
                 }
                 deferred.resolve(row);
@@ -143,6 +159,7 @@ Ext.define('CA.techservices.validator.Validator',{
         });
         return deferred;
     },
+
     _loadWsapiRecords: function(config) {
         var deferred = Ext.create('Deft.Deferred');
 
@@ -151,7 +168,7 @@ Ext.define('CA.techservices.validator.Validator',{
                 if (operation.wasSuccessful()){
                     var result = {};
                     result[config.model] = records;
-                    deferred.resolve(result);
+                    deferred.resolve(records);
                 } else {
                     deferred.reject(operation.error.errors.join(','));
                 }

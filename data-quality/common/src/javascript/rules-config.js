@@ -12,11 +12,14 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         model: 'PortfolioItem/Feature',
         unitLabel: 'features',
         query: '((Parent = null) AND (InvestmentCategory = "Build"))',
-        detailFetchFields: ['FormattedID','Name','Parent','State']
-
+        detailFetchFields: ['FormattedID','Name','Parent','State'],
+        flagRed: true,
+        flagYellow: false
     },{
 
         label: 'Orphaned Stories',
+        flagRed: false,
+        flagYellow: false,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Story is not in "Unelaborated" ScheduleState ' +
         '<li>Story Type is "Standard" or null' +
@@ -25,10 +28,11 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         model: 'HierarchicalRequirement',
         detailFetchFields: ['FormattedID','Name','Feature','Parent','ScheduleState','c_StoryType'],
         query: '(((c_StoryType = "Standard") OR (c_StoryType = "")) AND (((Feature = null) AND (ScheduleState > "Unelaborated")) AND (Project.c_BuildPercent != 0)))'
-
     },{
 
         label: 'Stories not sized',
+        flagRed: false,
+        flagYellow: true,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Parent Initiative has an Investment Category = "Build" ' +
         '<li>Parent Initiative state is "In-Progress" or "Staging" ' +
@@ -42,6 +46,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Active Stories / Inactive Initiatives',
+        watchColor: null,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Parent Initiative has an Investment Category = "Build" ' +
         '<li>Parent Initiative is NOT active (state is NOT "In-Progress" or "Staging") ' +
@@ -53,7 +58,8 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
 
     },{
 
-        label: 'Active Stories on Parent Teams',
+            label: 'Active Stories on Parent Teams',
+        watchColor: null,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Parent Initiative has an Investment Category = "Build" ' +
         '<li>Parent Initiative is active (state is "In-Progress" or "Staging") ' +
@@ -66,6 +72,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Strategy Category',
+        watchColor: null,
         description: 'Counting initiatives where:<br>' +
         '<li>Initiative has an Investment Category = "Build" ' +
         '<li>Strategy Category is null',
@@ -77,6 +84,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Active Stories / Team with no people',
+        watchColor: null,
         description: 'Counting stories where:<br>' +
         '<li>Initiative has an Investment Category = "Build" ' +
         '<li>Initiative is active (state is "In-Progress" or "Staging") ' +
@@ -90,6 +98,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Features not sized',
+        watchColor: null,
         description: 'Counting features where:' +
         '<li>Initiative is Build' +
         '<li>Initiative is active (state is "In-Progress" or "Staging")' +
@@ -116,6 +125,14 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     }],
 
     //Add rules to this array that you only want in the "Drilldown App" but not on the "Pretty" dashboard.
-    drilldownRules: []
+    drilldownRules: [{
+        label: 'Build Percent null',
+        description: 'Counting leaf node projects where the Build Percent field is null',
+        model: 'Project',
+        unitLabel: 'features',
+        detailFetchFields: ['Name','c_BuildPercent'],
+        query: '((c_BuildPercent = "") AND (Children.State != "Open"))',
+        exceptionClass: 'rule_leafprojectbuildpercentrule'
+    }]
 
 });
