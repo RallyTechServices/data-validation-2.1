@@ -41,7 +41,7 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
             ancestry = this.projectHash[projectID] && this.projectHash[projectID].ancestors;
 
         if (!ancestry){
-            console.log('ancestry parent', ancestry, parent);
+
             ancestry = [Number(projectID)];
             if (parent){
                 do {
@@ -49,7 +49,7 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
                     parent = this.projectHash[parent] &&
                         this.projectHash[parent].Parent &&
                         this.projectHash[parent].Parent.ObjectID || null;
-                    console.log('projectID ancestry parent',projectID, ancestry, parent);
+
                 } while (parent);
             }
             this.projectHash[projectID].ancestors = ancestry;
@@ -80,7 +80,6 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
                 return false;
             }
         });
-        console.log('isProjectLeafNode',(Date.now() - ms)/1000);
 
         return isLeafNode;
     },

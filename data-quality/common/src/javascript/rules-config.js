@@ -129,10 +129,16 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         label: 'Build Percent null',
         description: 'Counting leaf node projects where the Build Percent field is null',
         model: 'Project',
-        unitLabel: 'features',
         detailFetchFields: ['Name','c_BuildPercent'],
         query: '((c_BuildPercent = "") AND (Children.State != "Open"))',
         exceptionClass: 'rule_leafprojectbuildpercentrule'
+    },{
+        label: 'Teams assignment is inconsistent between Owner and Story',
+        description: 'Counting Active stories and child stories where the project object id is different than the value in the Workday Team on the owners person record.  Data will not include stories with Owners that do not belong to a Workday Team',
+        model: 'HierarchicalRequirement',
+        detailFetchFields: ['ObjectID','Name','Owner','Project'],
+        query: '((((ScheduleState = "Defined") OR (ScheduleState = "In-Progress")) OR (ScheduleState = "Completed")) AND (Owner.c_WorkdayTeam != ""))',
+        exceptionClass: 'rule_teamassignmentinconsistency'
     }]
 
 });

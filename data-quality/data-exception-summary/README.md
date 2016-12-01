@@ -11,6 +11,11 @@ some project permissions are missing for the tree in which this is running, then
 
 ![ScreenShot](/images/data-quality-data-exception-detail.png)
 
+###Rule configuration
+Rules can be configured in the ../common/rules-config.js file.  
+
+
+
 
 ## Development Notes
 
