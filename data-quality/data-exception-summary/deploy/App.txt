@@ -3,12 +3,12 @@
 <head>
     <title>Data Exception Drilldown App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Dec 01 2016 10:33:48 GMT-0700 (MST) -->
+    <!--  Build Date: Thu Dec 01 2016 10:40:07 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Dec 01 2016 10:33:48 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Thu Dec 01 2016 10:40:07 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 104379509511;
+        var CHECKSUM = 104379506890;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>

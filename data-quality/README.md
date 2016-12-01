@@ -34,6 +34,9 @@ Available configurations for each rule are:
 * query - the query to get the number of flagged items 
 * baseQuery (optional) - the query to get the total items - this is only used by the "Pretty" dashboard since it gets a total count as well as a flagged count
 * detailFetchFields (optional) - this is only used by the data exception summary.  These are the default fields that are loaded when a person clicks on a number to see details of the flagged items
+* exceptionClass (optional) - this is only for rules that cannot be resolved with a simple query.  These types of rules will start with a base query and then use logic (in the class file) to further filter the records. It is advised not to change any of the rule configurations for this class without thorough testing.  
+* flagRed (optional) - if true, then the header of the column in the data-exception-summary will be colored red.  This is only used in the "data-exception-summary".
+* flagYellow (optional) if true, then the header of the column in the data-exception-summary will be colored yellow.  flagRed overrides this value (e.g. if both are set to true, the column header will be red).  This is only used in the "data-exception-summary".
 
 #####prettyDashboardColumns
 Number of columns to display before a second line in the "Pretty" dashboard. 
