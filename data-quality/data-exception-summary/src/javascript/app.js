@@ -176,197 +176,157 @@ Ext.define("data-exception-summary", {
         if (!Ext.isObject(ruleValue)){
             return;
         }
+        this.addDetailGrid(record, ruleValue);
+    },
+    addDetailGrid: function(record, ruleValue){
 
-        var projectRef = '/project/' + record.get('bucketID'),
+        var projectID = record.get('bucketID'),
             projectName = record.get('bucket'),
-            context = this.getContext(),
-            rule = this.validator.getRule(ruleValue),
-            //rule = Ext.create('CA.technicalservices.dataquality.common.BaseRule', ruleValue.ruleConfig),
-            modelNames = [rule.getModel()],
-            filters = rule.getDetailFilters(record.get('bucketID'), this.projectUtility),
-            fetch = rule.getDetailFetchFields();
-        this.logger.log('showDetails modelNames', modelNames, fetch, filters.toString());
+            rule = this.validator.getRule(ruleValue);
 
-        var box = this.getDetailBox();
-        box.removeAll();
+        this.logger.log('addDetailGrid');
 
-        if (rule.getUseRallyGrid()){
-            box.add({
-                xtype:'panel',
-                ui: 'info-box',
-                hideCollapseTool: true,
-                collapsible: true,
-                collapsed: false,
-                collapseDirection: 'right',
-                headerPosition: 'left',
-                header: true,
-                cls: 'detail-panel',
-                width: this.getWidth(),
-                height: this.getHeight(),
-                padding: 10,
-                overflowY: 'auto',
+        this.getDetailBox().removeAll();
+
+        var panelConfig = {
+            xtype:'panel',
+            ui: 'info-box',
+            hideCollapseTool: true,
+            collapsible: true,
+            collapsed: false,
+            collapseDirection: 'right',
+            headerPosition: 'left',
+            header: true,
+            cls: 'detail-panel',
+            width: this.getWidth(),
+            height: this.getHeight(),
+            padding: 10,
+            overflowY: 'auto',
+            items: [{
+                xtype: 'container',
+                flex: 1,
+                layout: 'hbox',
                 items: [{
+                    xtype: 'rallybutton',
+                    cls: 'detail-collapse-button icon-leave',
+                    width: 18,
+                    margin: '0 10 0 25',
+                    userAction: 'Close (X) filter panel clicked',
+                    listeners: {
+                        click: function() { this.up('panel').destroy(); }
+                    }
+                },{
                     xtype: 'container',
                     flex: 1,
-                    layout: 'hbox',
-                    items: [{
-                        xtype: 'rallybutton',
-                        cls: 'detail-collapse-button icon-leave',
-                        width: 18,
-                        margin: '0 10 0 25',
-                        userAction: 'Close (X) filter panel clicked',
-                        listeners: {
-                            click: function() {
-                                //this.up('panel').collapse();
-                                this.up('panel').destroy();
+                    html: Ext.String.format('<div class="rule-title">{0}: {1}  ({3} results)</div><div class="rule-description">{2}</div>',projectName, rule.getLabel(),rule.getDescription(), ruleValue.value)
+                }]
+            }]
+        };
+
+        if (rule.getUseRallyGrid()){
+            this.addDetailRallyGrid(rule, projectID, panelConfig)
+        } else {
+            this.addDetailGridboard(rule, projectID, panelConfig, ruleValue.id);
+        }
+    },
+    addDetailRallyGrid: function(rule,projectID, panelConfig){
+        panelConfig.items.push({
+            xtype: 'rallygrid',
+            width: '75%',
+            storeConfig: {
+                model: rule.getModel(),
+                fetch: rule.getDetailFetchFields(),
+                filters: rule.getDetailFilters(projectID, this.projectUtility),
+                enablePostGet: true
+            },
+            columnCfgs: rule.getDetailColumnCfgs()
+        });
+        this.getDetailBox().add(panelConfig);
+    },
+    addDetailGridboard: function(rule,projectID,panelConfig,ruleId){
+        var context = this.getContext(),
+            projectRef = '/project/' + projectID,
+            filters = rule.getDetailFilters(projectID, this.projectUtility),
+            fetch = rule.getDetailFetchFields(),
+            modelNames = [rule.getModel()];
+
+        this.logger.log('addDetailGridboard', filters.toString(), fetch, modelNames, rule.getDetailColumnCfgs());
+
+        Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
+            models: modelNames,
+            enableHierarchy: false,
+            fetch: fetch,
+            filters: filters,
+            enableRootLevelPostGet: true,
+            context: {
+                project: projectRef,
+                projectScopeDown: true
+            }
+        }).then({
+            success: function(store) {
+                panelConfig.items.push({
+                    xtype: 'rallygridboard',
+                    context: context,
+                    modelNames: modelNames,
+                    toggleState: 'grid',
+                    plugins: [{
+                        ptype: 'rallygridboardinlinefiltercontrol',
+                        inlineFilterButtonConfig: {
+                            stateful: true,
+                            stateId: context.getScopedStateId('filter-' + ruleId),
+                            modelNames: modelNames,
+                            inlineFilterPanelConfig: {
+                                quickFilterPanelConfig: {
+                                    defaultFields: [
+                                        'ArtifactSearch',
+                                        'Owner',
+                                        'Project'
+                                    ]
+                                }
                             }
                         }
                     },{
-                        xtype: 'container',
-                        flex: 1,
-                        html: Ext.String.format('<div class="rule-title">{0}: {1}  ({3} results)</div><div class="rule-description">{2}</div>',projectName, rule.getLabel(),rule.getDescription(), ruleValue.value)
-                    }]
-                },{
-                 xtype: 'rallygrid',
-                    width: '75%',
-                 storeConfig: {
-                     model: rule.getModel(),
-                     fetch: fetch,
-                     filters: filters,
-                     enablePostGet: true
-                 },
-                 columnCfgs: Ext.Array.map(fetch, function(f){
-                     return {
-                         dataIndex: f,
-                         text: f,
-                         flex: 1
-                     }
-                 })
-                }]
-            });
-
-        } else {
-            Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
-                models: modelNames,
-                enableHierarchy: false,
-                fetch: fetch,
-                filters: filters,
-                enablePostGet: true,
-                context: {
-                    project: projectRef,
-                    projectScopeDown: true
-                }
-            }).then({
-                success: function(store) {
-
-                    box.add({
-                        xtype:'panel',
-                        ui: 'info-box',
-                        hideCollapseTool: true,
-                        collapsible: true,
-                        collapsed: false,
-                        collapseDirection: 'right',
+                        ptype: 'rallygridboardfieldpicker',
                         headerPosition: 'left',
-                        header: true,
-                        cls: 'detail-panel',
-                        width: this.getWidth(),
-                        height: this.getHeight(),
-                        padding: 10,
-                        overflowY: 'auto',
-                        items: [{
-                            xtype: 'container',
-                            flex: 1,
-                            layout: 'hbox',
-                            items: [{
-                                xtype: 'rallybutton',
-                                cls: 'detail-collapse-button icon-leave',
-                                width: 18,
-                                margin: '0 10 0 25',
-                                userAction: 'Close (X) filter panel clicked',
-                                listeners: {
-                                    click: function() {
-                                        //this.up('panel').collapse();
-                                        this.up('panel').destroy();
-                                    }
-                                }
-                            },{
-                                xtype: 'container',
-                                flex: 1,
-                                html: Ext.String.format('<div class="rule-title">{0}: {1}  ({3} results)</div><div class="rule-description">{2}</div>',projectName, rule.getLabel(),rule.getDescription(), ruleValue.value)
-                            }]
-                        },{
-                            xtype: 'rallygridboard',
-                            context: context,
-                            modelNames: modelNames,
-                            toggleState: 'grid',
-                            plugins: [{
-                                ptype: 'rallygridboardinlinefiltercontrol',
-                                inlineFilterButtonConfig: {
-                                    stateful: true,
-                                    stateId: context.getScopedStateId('filter-' + ruleValue.id),
-                                    modelNames: modelNames,
-                                    inlineFilterPanelConfig: {
-                                        quickFilterPanelConfig: {
-                                            defaultFields: [
-                                                'ArtifactSearch',
-                                                'Owner',
-                                                'Project'
-                                            ]
-                                        }
-                                    }
-                                }
-                            },{
-                                ptype: 'rallygridboardfieldpicker',
-                                headerPosition: 'left',
-                                modelNames: modelNames,
-                                stateful: true,
-                                stateId: context.getScopedStateId('columns-' + ruleValue.id)
-                            },{
-                                ptype: 'rallygridboardactionsmenu',
-                                menuItems: [
-                                    {
-                                        text: 'Export...',
-                                        handler: function() {
-                                            window.location = Rally.ui.gridboard.Export.buildCsvExportUrl(
-                                                this.down('rallygridboard').getGridOrBoard());
-                                        },
-                                        scope: this
-                                    }
-                                ],
-                                buttonConfig: {
-                                    iconCls: 'icon-export'
-                                }
-                            }],
-                            gridConfig: {
-                                store: store,
-                                storeConfig: {
-                                    filters: rule.getFilters(),
-                                    pageSize: 10,
-                                    enableRanking: false,
-                                    context: {
-                                        project: projectRef,
-                                        projectScopeDown: true
-                                    }
+                        modelNames: modelNames,
+                        stateful: true,
+                        stateId: context.getScopedStateId('columns-' + ruleId)
+                    },{
+                        ptype: 'rallygridboardactionsmenu',
+                        menuItems: [
+                            {
+                                text: 'Export...',
+                                handler: function() {
+                                    window.location = Rally.ui.gridboard.Export.buildCsvExportUrl(
+                                        this.down('rallygridboard').getGridOrBoard());
                                 },
-                                columnCfgs: rule.getDetailFetchFields()
-
-                            },
-                            height: this.getHeight()
-                        }]
-                    });
-
-                    //This is after we add the grid so that it doesn't try to update when we first load the grid
-                    //kc commented out -- this is killing performance.
-                    //store.on('update', function(){
-                    //    this.validator.refreshRecord(record);
-                    //}, this);
-
-                },
-                scope: this
-            });
-        }
-
-
+                                scope: this
+                            }
+                        ],
+                        buttonConfig: {
+                            iconCls: 'icon-export'
+                        }
+                    }],
+                    gridConfig: {
+                        store: store,
+                        storeConfig: {
+                            filters: filters,
+                            pageSize: 1000,
+                            enableRanking: false,
+                            enableRootLevelPostGet: true,
+                            context: {
+                                project: projectRef,
+                                projectScopeDown: true
+                            }
+                        },
+                        columnCfgs: rule.getDetailColumnCfgs()
+                    },
+                    height: this.getHeight()
+                });
+                this.getDetailBox().add(panelConfig);
+            },
+            scope: this
+        });
     },
     getOptions: function() {
         return [
@@ -383,11 +343,5 @@ Ext.define("data-exception-summary", {
     },
     isExternal: function(){
         return typeof(this.getAppId()) == 'undefined';
-    },
-    //onSettingsUpdate:  Override
-    onSettingsUpdate: function (settings){
-        this.logger.log('onSettingsUpdate',settings);
-        // Ext.apply(this, settings);
-        this.launch();
     }
 });

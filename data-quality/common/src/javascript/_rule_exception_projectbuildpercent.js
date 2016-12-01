@@ -17,7 +17,8 @@ Ext.define('CA.technicalservices.dataquality.common.LeafProjectBuildPercentRule'
                     model: this.getModel(),
                     fetch: this.getFetchFields(),
                     filters: this.getFilters(),
-                    context: {project: projectRef, projectScopeDown: true}
+                    context: {project: projectRef, projectScopeDown: true},
+                    limit: Infinity
                 };
 
             this._loadWsapiRecords(config).then({
@@ -55,5 +56,14 @@ Ext.define('CA.technicalservices.dataquality.common.LeafProjectBuildPercentRule'
         }
         return filters;
 
+    },
+    getDetailColumnConfigs: function(){
+        return [{
+            dataIndex: 'Name',
+            text: 'Name'
+        },{
+            dataIndex: 'c_BuildPercent',
+            text: 'Build Percent'
+        }]
     }
 });

@@ -96,6 +96,9 @@ Ext.define('CA.technicalservices.dataquality.common.BaseRule',{
     getDetailFilters: function(){
         return this.getFilters();
     },
+    getDetailColumnCfgs: function(){
+        return this.getDetailFetchFields();
+    },
     _loadWsapiRecords: function(config) {
         var deferred = Ext.create('Deft.Deferred');
 

@@ -3,12 +3,12 @@
 <head>
     <title>Data Exception Drilldown App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Wed Nov 30 2016 16:09:42 GMT-0700 (MST) -->
+    <!--  Build Date: Thu Dec 01 2016 10:33:16 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Nov 30 2016 16:09:42 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Thu Dec 01 2016 10:33:16 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 98295623433;
+        var CHECKSUM = 104379507632;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -301,6 +301,9 @@ Ext.define('CA.technicalservices.dataquality.common.BaseRule',{
     getDetailFilters: function(){
         return this.getFilters();
     },
+    getDetailColumnCfgs: function(){
+        return this.getDetailFetchFields();
+    },
     _loadWsapiRecords: function(config) {
         var deferred = Ext.create('Deft.Deferred');
 
@@ -337,7 +340,8 @@ Ext.define('CA.technicalservices.dataquality.common.LeafProjectBuildPercentRule'
                     model: this.getModel(),
                     fetch: this.getFetchFields(),
                     filters: this.getFilters(),
-                    context: {project: projectRef, projectScopeDown: true}
+                    context: {project: projectRef, projectScopeDown: true},
+                    limit: Infinity
                 };
 
             this._loadWsapiRecords(config).then({
@@ -375,6 +379,88 @@ Ext.define('CA.technicalservices.dataquality.common.LeafProjectBuildPercentRule'
         }
         return filters;
 
+    },
+    getDetailColumnConfigs: function(){
+        return [{
+            dataIndex: 'Name',
+            text: 'Name'
+        },{
+            dataIndex: 'c_BuildPercent',
+            text: 'Build Percent'
+        }]
+    }
+});
+Ext.define('CA.technicalservices.dataquality.common.TeamAssignmentInconsistency',{
+    extend: 'CA.technicalservices.dataquality.common.BaseRule',
+    alias:  'widget.rule_teamassignmentinconsistency',
+    getCount: function(projectID, projectUtility){
+        var deferred = Ext.create('Deft.Deferred');
+
+        var projectRef= '/project/' + projectID,
+            config = {
+                model: this.getModel(),
+                fetch: ['ObjectID','Project','Owner','c_WorkdayTeam'],
+                filters: this.getFilters(),
+                context: {project: projectRef, projectScopeDown: true},
+                compact: false,
+                pageSize: 2000,
+                limit: Infinity
+            };
+
+        this._loadWsapiRecords(config).then({
+            success: function(records){
+                var recordData = _.map(records, function(r){ return r.getData(); }),
+                    obj = this._processRecords(recordData);
+
+                if (!this.flaggedItems){
+                    this.flaggedItems = {};
+                }
+                this.flaggedItems[projectID] = obj;
+
+                deferred.resolve(obj.count);
+            },
+            scope: this
+        });
+        return deferred;
+    },
+    _processRecords: function(recordData){
+        var flaggedStories = [],
+            count = 0;
+
+        for (var i=0; i<recordData.length; i++){
+            var r = recordData[i];
+            if (Number(r.Owner.c_WorkdayTeam) !== r.Project.ObjectID){
+                flaggedStories.push(r.ObjectID);
+                count++;
+            }
+        }
+        return {
+            count: count,
+            flaggedStories: flaggedStories
+        };
+        //return affectedProjects;
+    },
+    getDetailFilters: function(projectID, projectUtility){
+
+        var obj = this.flaggedItems[projectID],
+            stories = obj.flaggedStories;
+
+        var filters = Ext.Array.map(stories, function(o){ return {
+                property: 'ObjectID',
+                value: o
+            };
+        });
+
+        if (filters && filters.length > 1){
+             return Rally.data.wsapi.Filter.or(filters);
+        }
+        if (filters.length === 0){
+            filters = {
+                property: 'ObjectID',
+                value: 0
+            };
+        }
+        return filters;
     }
 });
 /**
@@ -900,10 +986,16 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         label: 'Build Percent null',
         description: 'Counting leaf node projects where the Build Percent field is null',
         model: 'Project',
-        unitLabel: 'features',
         detailFetchFields: ['Name','c_BuildPercent'],
         query: '((c_BuildPercent = "") AND (Children.State != "Open"))',
         exceptionClass: 'rule_leafprojectbuildpercentrule'
+    },{
+        label: 'Teams assignment is inconsistent between Owner and Story',
+        description: 'Counting Active stories and child stories where the project object id is different than the value in the Workday Team on the owners person record.  Data will not include stories with Owners that do not belong to a Workday Team',
+        model: 'HierarchicalRequirement',
+        detailFetchFields: ['ObjectID','Name','Owner','Project'],
+        query: '((((ScheduleState = "Defined") OR (ScheduleState = "In-Progress")) OR (ScheduleState = "Completed")) AND (Owner.c_WorkdayTeam != ""))',
+        exceptionClass: 'rule_teamassignmentinconsistency'
     }]
 
 });
@@ -1538,7 +1630,7 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
             ancestry = this.projectHash[projectID] && this.projectHash[projectID].ancestors;
 
         if (!ancestry){
-            console.log('ancestry parent', ancestry, parent);
+
             ancestry = [Number(projectID)];
             if (parent){
                 do {
@@ -1546,7 +1638,7 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
                     parent = this.projectHash[parent] &&
                         this.projectHash[parent].Parent &&
                         this.projectHash[parent].Parent.ObjectID || null;
-                    console.log('projectID ancestry parent',projectID, ancestry, parent);
+
                 } while (parent);
             }
             this.projectHash[projectID].ancestors = ancestry;
@@ -1577,7 +1669,6 @@ Ext.define('CA.technicalservices.utils.ProjectUtilities',{
                 return false;
             }
         });
-        console.log('isProjectLeafNode',(Date.now() - ms)/1000);
 
         return isLeafNode;
     },
@@ -1788,197 +1879,157 @@ Ext.define("data-exception-summary", {
         if (!Ext.isObject(ruleValue)){
             return;
         }
+        this.addDetailGrid(record, ruleValue);
+    },
+    addDetailGrid: function(record, ruleValue){
 
-        var projectRef = '/project/' + record.get('bucketID'),
+        var projectID = record.get('bucketID'),
             projectName = record.get('bucket'),
-            context = this.getContext(),
-            rule = this.validator.getRule(ruleValue),
-            //rule = Ext.create('CA.technicalservices.dataquality.common.BaseRule', ruleValue.ruleConfig),
-            modelNames = [rule.getModel()],
-            filters = rule.getDetailFilters(record.get('bucketID'), this.projectUtility),
-            fetch = rule.getDetailFetchFields();
-        this.logger.log('showDetails modelNames', modelNames, fetch, filters.toString());
+            rule = this.validator.getRule(ruleValue);
 
-        var box = this.getDetailBox();
-        box.removeAll();
+        this.logger.log('addDetailGrid');
 
-        if (rule.getUseRallyGrid()){
-            box.add({
-                xtype:'panel',
-                ui: 'info-box',
-                hideCollapseTool: true,
-                collapsible: true,
-                collapsed: false,
-                collapseDirection: 'right',
-                headerPosition: 'left',
-                header: true,
-                cls: 'detail-panel',
-                width: this.getWidth(),
-                height: this.getHeight(),
-                padding: 10,
-                overflowY: 'auto',
+        this.getDetailBox().removeAll();
+
+        var panelConfig = {
+            xtype:'panel',
+            ui: 'info-box',
+            hideCollapseTool: true,
+            collapsible: true,
+            collapsed: false,
+            collapseDirection: 'right',
+            headerPosition: 'left',
+            header: true,
+            cls: 'detail-panel',
+            width: this.getWidth(),
+            height: this.getHeight(),
+            padding: 10,
+            overflowY: 'auto',
+            items: [{
+                xtype: 'container',
+                flex: 1,
+                layout: 'hbox',
                 items: [{
+                    xtype: 'rallybutton',
+                    cls: 'detail-collapse-button icon-leave',
+                    width: 18,
+                    margin: '0 10 0 25',
+                    userAction: 'Close (X) filter panel clicked',
+                    listeners: {
+                        click: function() { this.up('panel').destroy(); }
+                    }
+                },{
                     xtype: 'container',
                     flex: 1,
-                    layout: 'hbox',
-                    items: [{
-                        xtype: 'rallybutton',
-                        cls: 'detail-collapse-button icon-leave',
-                        width: 18,
-                        margin: '0 10 0 25',
-                        userAction: 'Close (X) filter panel clicked',
-                        listeners: {
-                            click: function() {
-                                //this.up('panel').collapse();
-                                this.up('panel').destroy();
+                    html: Ext.String.format('<div class="rule-title">{0}: {1}  ({3} results)</div><div class="rule-description">{2}</div>',projectName, rule.getLabel(),rule.getDescription(), ruleValue.value)
+                }]
+            }]
+        };
+
+        if (rule.getUseRallyGrid()){
+            this.addDetailRallyGrid(rule, projectID, panelConfig)
+        } else {
+            this.addDetailGridboard(rule, projectID, panelConfig, ruleValue.id);
+        }
+    },
+    addDetailRallyGrid: function(rule,projectID, panelConfig){
+        panelConfig.items.push({
+            xtype: 'rallygrid',
+            width: '75%',
+            storeConfig: {
+                model: rule.getModel(),
+                fetch: rule.getDetailFetchFields(),
+                filters: rule.getDetailFilters(projectID, this.projectUtility),
+                enablePostGet: true
+            },
+            columnCfgs: rule.getDetailColumnCfgs()
+        });
+        this.getDetailBox().add(panelConfig);
+    },
+    addDetailGridboard: function(rule,projectID,panelConfig,ruleId){
+        var context = this.getContext(),
+            projectRef = '/project/' + projectID,
+            filters = rule.getDetailFilters(projectID, this.projectUtility),
+            fetch = rule.getDetailFetchFields(),
+            modelNames = [rule.getModel()];
+
+        this.logger.log('addDetailGridboard', filters.toString(), fetch, modelNames, rule.getDetailColumnCfgs());
+
+        Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
+            models: modelNames,
+            enableHierarchy: false,
+            fetch: fetch,
+            filters: filters,
+            enableRootLevelPostGet: true,
+            context: {
+                project: projectRef,
+                projectScopeDown: true
+            }
+        }).then({
+            success: function(store) {
+                panelConfig.items.push({
+                    xtype: 'rallygridboard',
+                    context: context,
+                    modelNames: modelNames,
+                    toggleState: 'grid',
+                    plugins: [{
+                        ptype: 'rallygridboardinlinefiltercontrol',
+                        inlineFilterButtonConfig: {
+                            stateful: true,
+                            stateId: context.getScopedStateId('filter-' + ruleId),
+                            modelNames: modelNames,
+                            inlineFilterPanelConfig: {
+                                quickFilterPanelConfig: {
+                                    defaultFields: [
+                                        'ArtifactSearch',
+                                        'Owner',
+                                        'Project'
+                                    ]
+                                }
                             }
                         }
                     },{
-                        xtype: 'container',
-                        flex: 1,
-                        html: Ext.String.format('<div class="rule-title">{0}: {1}  ({3} results)</div><div class="rule-description">{2}</div>',projectName, rule.getLabel(),rule.getDescription(), ruleValue.value)
-                    }]
-                },{
-                 xtype: 'rallygrid',
-                    width: '75%',
-                 storeConfig: {
-                     model: rule.getModel(),
-                     fetch: fetch,
-                     filters: filters,
-                     enablePostGet: true
-                 },
-                 columnCfgs: Ext.Array.map(fetch, function(f){
-                     return {
-                         dataIndex: f,
-                         text: f,
-                         flex: 1
-                     }
-                 })
-                }]
-            });
-
-        } else {
-            Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
-                models: modelNames,
-                enableHierarchy: false,
-                fetch: fetch,
-                filters: filters,
-                enablePostGet: true,
-                context: {
-                    project: projectRef,
-                    projectScopeDown: true
-                }
-            }).then({
-                success: function(store) {
-
-                    box.add({
-                        xtype:'panel',
-                        ui: 'info-box',
-                        hideCollapseTool: true,
-                        collapsible: true,
-                        collapsed: false,
-                        collapseDirection: 'right',
+                        ptype: 'rallygridboardfieldpicker',
                         headerPosition: 'left',
-                        header: true,
-                        cls: 'detail-panel',
-                        width: this.getWidth(),
-                        height: this.getHeight(),
-                        padding: 10,
-                        overflowY: 'auto',
-                        items: [{
-                            xtype: 'container',
-                            flex: 1,
-                            layout: 'hbox',
-                            items: [{
-                                xtype: 'rallybutton',
-                                cls: 'detail-collapse-button icon-leave',
-                                width: 18,
-                                margin: '0 10 0 25',
-                                userAction: 'Close (X) filter panel clicked',
-                                listeners: {
-                                    click: function() {
-                                        //this.up('panel').collapse();
-                                        this.up('panel').destroy();
-                                    }
-                                }
-                            },{
-                                xtype: 'container',
-                                flex: 1,
-                                html: Ext.String.format('<div class="rule-title">{0}: {1}  ({3} results)</div><div class="rule-description">{2}</div>',projectName, rule.getLabel(),rule.getDescription(), ruleValue.value)
-                            }]
-                        },{
-                            xtype: 'rallygridboard',
-                            context: context,
-                            modelNames: modelNames,
-                            toggleState: 'grid',
-                            plugins: [{
-                                ptype: 'rallygridboardinlinefiltercontrol',
-                                inlineFilterButtonConfig: {
-                                    stateful: true,
-                                    stateId: context.getScopedStateId('filter-' + ruleValue.id),
-                                    modelNames: modelNames,
-                                    inlineFilterPanelConfig: {
-                                        quickFilterPanelConfig: {
-                                            defaultFields: [
-                                                'ArtifactSearch',
-                                                'Owner',
-                                                'Project'
-                                            ]
-                                        }
-                                    }
-                                }
-                            },{
-                                ptype: 'rallygridboardfieldpicker',
-                                headerPosition: 'left',
-                                modelNames: modelNames,
-                                stateful: true,
-                                stateId: context.getScopedStateId('columns-' + ruleValue.id)
-                            },{
-                                ptype: 'rallygridboardactionsmenu',
-                                menuItems: [
-                                    {
-                                        text: 'Export...',
-                                        handler: function() {
-                                            window.location = Rally.ui.gridboard.Export.buildCsvExportUrl(
-                                                this.down('rallygridboard').getGridOrBoard());
-                                        },
-                                        scope: this
-                                    }
-                                ],
-                                buttonConfig: {
-                                    iconCls: 'icon-export'
-                                }
-                            }],
-                            gridConfig: {
-                                store: store,
-                                storeConfig: {
-                                    filters: rule.getFilters(),
-                                    pageSize: 10,
-                                    enableRanking: false,
-                                    context: {
-                                        project: projectRef,
-                                        projectScopeDown: true
-                                    }
+                        modelNames: modelNames,
+                        stateful: true,
+                        stateId: context.getScopedStateId('columns-' + ruleId)
+                    },{
+                        ptype: 'rallygridboardactionsmenu',
+                        menuItems: [
+                            {
+                                text: 'Export...',
+                                handler: function() {
+                                    window.location = Rally.ui.gridboard.Export.buildCsvExportUrl(
+                                        this.down('rallygridboard').getGridOrBoard());
                                 },
-                                columnCfgs: rule.getDetailFetchFields()
-
-                            },
-                            height: this.getHeight()
-                        }]
-                    });
-
-                    //This is after we add the grid so that it doesn't try to update when we first load the grid
-                    //kc commented out -- this is killing performance.
-                    //store.on('update', function(){
-                    //    this.validator.refreshRecord(record);
-                    //}, this);
-
-                },
-                scope: this
-            });
-        }
-
-
+                                scope: this
+                            }
+                        ],
+                        buttonConfig: {
+                            iconCls: 'icon-export'
+                        }
+                    }],
+                    gridConfig: {
+                        store: store,
+                        storeConfig: {
+                            filters: filters,
+                            pageSize: 1000,
+                            enableRanking: false,
+                            enableRootLevelPostGet: true,
+                            context: {
+                                project: projectRef,
+                                projectScopeDown: true
+                            }
+                        },
+                        columnCfgs: rule.getDetailColumnCfgs()
+                    },
+                    height: this.getHeight()
+                });
+                this.getDetailBox().add(panelConfig);
+            },
+            scope: this
+        });
     },
     getOptions: function() {
         return [
@@ -1995,12 +2046,6 @@ Ext.define("data-exception-summary", {
     },
     isExternal: function(){
         return typeof(this.getAppId()) == 'undefined';
-    },
-    //onSettingsUpdate:  Override
-    onSettingsUpdate: function (settings){
-        this.logger.log('onSettingsUpdate',settings);
-        // Ext.apply(this, settings);
-        this.launch();
     }
 });
 
