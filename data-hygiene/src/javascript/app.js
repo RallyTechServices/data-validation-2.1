@@ -14,11 +14,13 @@ Ext.define("data-hygiene", {
         {xtype:'container',itemId:'grid_box', flex: 1}
     ],
 
+
     config: {
         defaultSettings: {
             portfolioAOPField: 'Ready',
             portfolioCRField: 'Ready',
             userStoryCRField: 'Ready',
+            userStoryCRApprovalField: 'c_CRApprovedDate',
             projectGroups: [],
             query: null,
             lastUpdateDateAfter: null,
@@ -343,6 +345,9 @@ Ext.define("data-hygiene", {
     getStoryCRField: function(){
         return this.getSetting('userStoryCRField');
     },
+    getStoryCRApprovalField: function(){
+        return this.getSetting('userStoryCRApprovalField');
+    },
     getProjectGroups: function(){
         var groups = [],
             group_setting = this.getSetting('projectGroups');
@@ -427,6 +432,14 @@ Ext.define("data-hygiene", {
             targetFieldValue: false,
             projectGroups: this.getProjectGroups()
         },{
+            xtype: 'tsportfolio_staterelease',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
+        },{
+            xtype: 'tsportfolio_statenostories',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
+        },{
             xtype:'tsstory_orphan',
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
@@ -460,6 +473,14 @@ Ext.define("data-hygiene", {
             description: 'User Stories with "CR" field <b>not</b> checked',
             targetFieldValue: false,
             projectGroups: this.getProjectGroups()
+        },{
+            xtype: 'tsstory_inprogressbeforeexecution',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
+        },{
+            xtype: 'tsstory_inprogresscrcheckednoapproval',
+            crField: this.getStoryCRField(),
+            crApprovalField: this.getStoryCRApprovalField()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
