@@ -1,6 +1,6 @@
-Ext.define('CA.techservices.validation.PortfolioStateRule',{
+Ext.define('CA.techservices.validation.PortfolioCRCheckedNoApproval',{
     extend: 'CA.techservices.validation.BaseRule',
-    alias:  'widget.tsportfolio_staterelease',
+    alias:  'widget.tsportfolio_crcheckednoapproval',
 
 
     config: {
@@ -8,13 +8,15 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
          * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
          * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
          */
+        crField: null,
+        crApprovalField: null,
         portfolioItemTypes:[],
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
 
-        label: '{0} in "{1}" State or beyond missing Release',
-        description: '{0} in "{1}" State or beyond missing Release'
+        label: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date',
+        description: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
@@ -35,18 +37,20 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
             }
         }, this);
 
+
+        var crFilters = Rally.data.wsapi.Filter.and([{
+            property: this.crField,
+            value: true
+        },{
+            property: this.crApprovalField,
+            value: "null"
+        }]);
+
         if (filters.length > 1){
             filters = Rally.data.wsapi.Filter.or(filters);
-            filters = filters.and({
-                property: 'Release',
-                value: ""
-            });
+            filters = filters.and(crFilters);
         } else {
-            filters.push({
-                property: 'Release',
-                value: ""
-            });
-            filters = Rally.data.wsapi.Filter.and(filters);
+            filters = crFilters.and(filters);
         }
 
         return filters;

@@ -11,7 +11,7 @@ Ext.define('CA.techservices.validation.StoryOrphan',{
         model: 'HierarchicalRequirement',
         portfolioItemTypes: null,
 
-        label: 'Orphan Stories (no parent {1})'
+        label: 'Orphan Stories (no parent {0})'
     },
     getLabel: function(){
         var msg = Ext.String.format(

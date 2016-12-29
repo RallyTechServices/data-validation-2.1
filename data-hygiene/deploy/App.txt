@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Sun Nov 27 2016 11:04:19 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Dec 28 2016 22:14:09 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Sun Nov 27 2016 11:04:19 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Wed Dec 28 2016 22:14:09 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 158993780458;
+        var CHECKSUM = 197228952927;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -1653,6 +1653,74 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
         return filters.and(childFilters);
     }
 });
+Ext.define('CA.techservices.validation.PortfolioCRCheckedNoApproval',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsportfolio_crcheckednoapproval',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+        crField: null,
+        crApprovalField: null,
+        portfolioItemTypes:[],
+        portfolioItemStates: [],
+        targetPortfolioLevel: 0,
+        executionState: "Execution",
+
+        label: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date',
+        description: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date'
+    },
+    getModel:function(){
+        return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
+    },
+    getLabel: function(){
+        return Ext.String.format(this.label, this.portfolioItemTypes[this.targetPortfolioLevel].Name, this.executionState);
+    },
+    getFilters: function(){
+        var filters = [],
+            piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
+            states = this.portfolioItemStates[piName];
+        Ext.Array.each(states, function(state){
+            if (state === this.executionState || filters.length > 0){
+                filters.push({
+                    property: 'State.Name',
+                    value: state
+                });
+            }
+        }, this);
+
+
+        var crFilters = Rally.data.wsapi.Filter.and([{
+            property: this.crField,
+            value: true
+        },{
+            property: this.crApprovalField,
+            value: "null"
+        }]);
+
+        if (filters.length > 1){
+            filters = Rally.data.wsapi.Filter.or(filters);
+            filters = filters.and(crFilters);
+        } else {
+            filters = crFilters.and(filters);
+        }
+
+        return filters;
+
+        //var executionState = this.executionState,
+        //    filters = [{
+        //    property: 'State.Name',
+        //    value: executionState
+        //},{
+        //    property: 'Release',
+        //    value: ""
+        //}];
+        //return Rally.data.wsapi.Filter.and(filters);
+    }
+});
 Ext.define('CA.techservices.validation.PortfolioFieldValue',{
     extend: 'CA.techservices.validation.BaseRule',
     alias:  'widget.tsportfolio_fieldvalue',
@@ -1717,6 +1785,60 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
         return Rally.data.wsapi.Filter.fromQueryString("(Parent = \"\")");
     }
 });
+Ext.define('CA.techservices.validation.PortfolioStateNoStories',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsportfolio_statenostories',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+        portfolioItemTypes:[],
+        portfolioItemStates: [],
+        targetPortfolioLevel: 0,
+        triggerState: "Planning",
+
+        label: '{0} in "{1}" State or beyond with no child stories',
+        description: '{0} in "{1}" State or beyond with no child stories'
+    },
+    getModel:function(){
+        return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
+    },
+    getLabel: function(){
+        return Ext.String.format(this.label, this.portfolioItemTypes[this.targetPortfolioLevel].Name, this.triggerState);
+    },
+    getFilters: function(){
+        var filters = [],
+            piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
+            states = this.portfolioItemStates[piName];
+        Ext.Array.each(states, function(state){
+            if (state === this.triggerState || filters.length > 0){
+                filters.push({
+                    property: 'State.Name',
+                    value: state
+                });
+            }
+        }, this);
+
+        if (filters.length > 1){
+            filters = Rally.data.wsapi.Filter.or(filters);
+            filters = filters.and({
+                property: 'LeafStoryCount',
+                value: 0
+            });
+        } else {
+            filters.push({
+                property: 'LeafStoryCount',
+                value: 0
+            });
+            filters = Rally.data.wsapi.Filter.and(filters);
+        }
+
+        return filters;
+    }
+});
 Ext.define('CA.techservices.validation.PortfolioProject',{
     extend: 'CA.techservices.validation.BaseRule',
     alias:  'widget.tsportfolio_project',
@@ -1779,28 +1901,92 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
          * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
          */
         portfolioItemTypes:[],
+        portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
 
-        label: '{0} in "Execution" State missing Release',
-        description: '{0} in "Execution" State missing Release'
+        label: '{0} in "{1}" State or beyond missing Release',
+        description: '{0} in "{1}" State or beyond missing Release'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
     },
     getLabel: function(){
-        return Ext.String.format(this.label, this.portfolioItemTypes[this.targetPortfolioLevel].Name);
+        return Ext.String.format(this.label, this.portfolioItemTypes[this.targetPortfolioLevel].Name, this.executionState);
     },
     getFilters: function(){
-        var executionState = this.executionState,
-            filters = [{
-            property: 'State.Name',
-            value: executionState
+        var filters = [],
+            piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
+            states = this.portfolioItemStates[piName];
+        Ext.Array.each(states, function(state){
+            if (state === this.executionState || filters.length > 0){
+                filters.push({
+                    property: 'State.Name',
+                    value: state
+                });
+            }
+        }, this);
+
+        if (filters.length > 1){
+            filters = Rally.data.wsapi.Filter.or(filters);
+            filters = filters.and({
+                property: 'Release',
+                value: ""
+            });
+        } else {
+            filters.push({
+                property: 'Release',
+                value: ""
+            });
+            filters = Rally.data.wsapi.Filter.and(filters);
+        }
+
+        return filters;
+
+        //var executionState = this.executionState,
+        //    filters = [{
+        //    property: 'State.Name',
+        //    value: executionState
+        //},{
+        //    property: 'Release',
+        //    value: ""
+        //}];
+        //return Rally.data.wsapi.Filter.and(filters);
+    }
+});
+Ext.define('CA.techservices.validation.StoryInProgressCRCheckedNoApproval',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsstory_inprogresscrcheckednoapproval',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+        crField: null,
+        crApprovalField: null,
+
+        model: 'HierarchicalRequirement',
+        label: 'User Stories "In Progress" with CR Checked but no CR Approval',
+        description: 'User Stories "In Progress" with CR Checked but no CR Approval',
+    },
+    getFilters: function() {
+
+        var filters = Rally.data.wsapi.Filter.and([{
+            property: 'ScheduleState',
+            operator: '>',
+            value: 'Defined'
         },{
-            property: 'Release',
-            value: ""
-        }];
-        return Rally.data.wsapi.Filter.and(filters);
+            property: this.crField,
+            value: true
+        },{
+            property: this.crApprovalField,
+            value: "null"
+        }]);
+        return filters;
+
+
     }
 });
 Ext.define('CA.techservices.validation.UserStoryFieldValue',{
@@ -1824,6 +2010,69 @@ Ext.define('CA.techservices.validation.UserStoryFieldValue',{
             property: this.targetField,
             value: this.targetFieldValue
         });
+    }
+});
+Ext.define('CA.techservices.validation.StoryInProgressBeforeExecution',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsstory_inprogressbeforeexecution',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+        scheduleStates: null,
+        executionState: 'Execution',
+
+        model: 'HierarchicalRequirement',
+        label: 'User Stories "in progress" when Feature is not in "{0}" State or beyond',
+        description: 'User Stories "in progress" when Feature is not in "{0}" State or beyond'
+    },
+    getLabel: function(){
+        return Ext.String.format(this.label, this.executionState);
+    },
+    getFilters: function() {
+
+        var piKey = this.portfolioItemTypes[0].TypePath,
+            piName = this.portfolioItemTypes[0].Name,
+            states = this.portfolioItemStates[piKey],
+            filters = [{
+                property: piName + '.State',
+                value: ""
+            }];
+
+        Ext.Array.each(states, function(state){
+
+            if (state === this.executionState){
+                return false;
+            }
+            filters.push({
+                property: piName + '.State.Name',
+                value: state
+            });
+
+        }, this);
+
+        if (filters.length > 1){
+            filters = Rally.data.wsapi.Filter.or(filters);
+            filters = filters.and({
+                property: 'InProgressDate',
+                operator: ">",
+                value: "2000-01-01"
+            });
+        } else {
+            filters.push({
+                property: 'InProgressDate',
+                operator: ">",
+                value: "2000-01-01"
+            });
+            filters = Rally.data.wsapi.Filter.and(filters);
+        }
+        console.log('filters', filters.toString());
+        return filters;
+
+
     }
 });
 Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
@@ -1941,7 +2190,7 @@ Ext.define('CA.techservices.validation.StoryOrphan',{
         model: 'HierarchicalRequirement',
         portfolioItemTypes: null,
 
-        label: 'Orphan Stories (no parent {1})'
+        label: 'Orphan Stories (no parent {0})'
     },
     getLabel: function(){
         var msg = Ext.String.format(
@@ -2046,11 +2295,14 @@ Ext.define("data-hygiene", {
         {xtype:'container',itemId:'grid_box', flex: 1}
     ],
 
+
     config: {
         defaultSettings: {
             portfolioAOPField: 'Ready',
             portfolioCRField: 'Ready',
+            portfolioCRApprovalField: 'c_CRApprovedDate',
             userStoryCRField: 'Ready',
+            userStoryCRApprovalField: 'c_CRApprovedDate',
             projectGroups: [],
             query: null,
             lastUpdateDateAfter: null,
@@ -2106,7 +2358,7 @@ Ext.define("data-hygiene", {
         this.getExportBox().removeAll();
         this.getChartBox().removeAll();
         this.getGridBox().removeAll();
-
+        this.setLoading(true);
         this.validator = this._createValidator();
         var filters = this.getFilters();
         this.logger.log('_loadData', filters && filters.toString());
@@ -2372,8 +2624,15 @@ Ext.define("data-hygiene", {
     getPortfolioCRField: function(){
         return this.getSetting('portfolioCRField');
     },
+    getPortfolioCRApprovalField: function(){
+        return this.getSetting('portfolioCRApprovalField');
+
+    },
     getStoryCRField: function(){
         return this.getSetting('userStoryCRField');
+    },
+    getStoryCRApprovalField: function(){
+        return this.getSetting('userStoryCRApprovalField');
     },
     getProjectGroups: function(){
         var groups = [],
@@ -2459,6 +2718,20 @@ Ext.define("data-hygiene", {
             targetFieldValue: false,
             projectGroups: this.getProjectGroups()
         },{
+            xtype: 'tsportfolio_staterelease',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
+        },{
+            xtype: 'tsportfolio_statenostories',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
+        },{
+            xtype: 'tsportfolio_crcheckednoapproval',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates,
+            crField: this.getPortfolioCRField(),
+            crApprovalField: this.getPortfolioCRApprovalField()
+        },{
             xtype:'tsstory_orphan',
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
@@ -2492,6 +2765,14 @@ Ext.define("data-hygiene", {
             description: 'User Stories with "CR" field <b>not</b> checked',
             targetFieldValue: false,
             projectGroups: this.getProjectGroups()
+        },{
+            xtype: 'tsstory_inprogressbeforeexecution',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
+        },{
+            xtype: 'tsstory_inprogresscrcheckednoapproval',
+            crField: this.getStoryCRField(),
+            crApprovalField: this.getStoryCRApprovalField()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
