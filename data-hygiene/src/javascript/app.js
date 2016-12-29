@@ -19,6 +19,7 @@ Ext.define("data-hygiene", {
         defaultSettings: {
             portfolioAOPField: 'Ready',
             portfolioCRField: 'Ready',
+            portfolioCRApprovalField: 'c_CRApprovedDate',
             userStoryCRField: 'Ready',
             userStoryCRApprovalField: 'c_CRApprovedDate',
             projectGroups: [],
@@ -76,7 +77,7 @@ Ext.define("data-hygiene", {
         this.getExportBox().removeAll();
         this.getChartBox().removeAll();
         this.getGridBox().removeAll();
-
+        this.setLoading(true);
         this.validator = this._createValidator();
         var filters = this.getFilters();
         this.logger.log('_loadData', filters && filters.toString());
@@ -342,6 +343,10 @@ Ext.define("data-hygiene", {
     getPortfolioCRField: function(){
         return this.getSetting('portfolioCRField');
     },
+    getPortfolioCRApprovalField: function(){
+        return this.getSetting('portfolioCRApprovalField');
+
+    },
     getStoryCRField: function(){
         return this.getSetting('userStoryCRField');
     },
@@ -439,6 +444,12 @@ Ext.define("data-hygiene", {
             xtype: 'tsportfolio_statenostories',
             portfolioItemTypes: this.portfolioItemTypes,
             portfolioItemStates: this.portfolioItemStates
+        },{
+            xtype: 'tsportfolio_crcheckednoapproval',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates,
+            crField: this.getPortfolioCRField(),
+            crApprovalField: this.getPortfolioCRApprovalField()
         },{
             xtype:'tsstory_orphan',
             portfolioItemTypes: this.portfolioItemTypes,
