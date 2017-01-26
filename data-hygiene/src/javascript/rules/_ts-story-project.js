@@ -10,8 +10,8 @@ Ext.define('CA.techservices.validation.StoryProject',{
          */
         portfolioItemTypes:[],
         model: 'HierarchicalRequirement',
-        label: 'User Stories with incorrect "Project" field value --> should be "Team"',
-        description: 'User Stories with incorrect "Project" field value --> should be "Team"'
+        label: 'Stories with incorrect "Project" field value --> should be "Team"',
+        description: 'Stories with incorrect "Project" field value --> should be "Team"'
     },
     getFetchFields: function() {
         return ['Name','Project'];
@@ -21,20 +21,39 @@ Ext.define('CA.techservices.validation.StoryProject',{
         if (baseFilters){
             filters = filters.and(baseFilters);
         }
+
+        var deliveryFilters = filters.and({
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Team'
+        });
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
                 filters: filters,
                 context: {project: pg.strategyProjectRef, projectScopeDown: true}
+            },
+            deliveryConfig = {
+                model: this.getModel(),
+                filters: deliveryFilters,
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
-        this._loadWsapiCount(executionConfig).then({
-            success: function(count){
-                deferred.resolve(count);
+        var promises = [
+            this._loadWsapiCount(executionConfig),
+            this._loadWsapiCount(deliveryConfig)
+        ];
+
+        Deft.Promise.all(promises).then({
+            success: function(results){
+                console.log('results', results);
+                deferred.resolve(Ext.Array.sum(results));
+
             },
             failure: function(msg){
                 deferred.reject(msg);
-            }
+            },
+            scope: this
         });
         return deferred.promise;
     },

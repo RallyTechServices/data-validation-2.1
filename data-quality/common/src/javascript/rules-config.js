@@ -109,9 +109,9 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         query: '((((Parent.State.Name = "In-Progress") OR (Parent.State.Name = "Staging")) AND (Parent.InvestmentCategory = "Build")) AND (PreliminaryEstimate = ""))'
     }],
 
+
     //Add rules to this array that you only want on the "Pretty" dashboard and not in the drilldown app
     prettyRules: [{
-
         label: 'Misaliged Feature / Intiative Investment Category',
         description: 'Counting features where:' +
         '<li>Initiative Investment Category is "Build"' +

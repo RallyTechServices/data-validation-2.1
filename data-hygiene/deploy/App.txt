@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Wed Dec 28 2016 22:14:09 GMT-0700 (MST) -->
+    <!--  Build Date: Thu Jan 26 2017 13:04:07 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Dec 28 2016 22:14:09 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Thu Jan 26 2017 13:04:07 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 197228952927;
+        var CHECKSUM = 205427241346;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -1611,8 +1611,8 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
         portfolioItemTypes:[],
         targetPortfolioLevel: 1,
 
-        label: '{0} in "No Entry” state with {1}s in "Front Door" state or beyond',
-        description: '{0} in "No Entry” state with {1}s in "Front Door" state or beyond'
+        label: '{0}s in "No Entry” state with {1}s in "Front Door" state or beyond',
+        description: '{0}s in "No Entry” state with {1}s in "Front Door" state or beyond'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
@@ -1620,7 +1620,7 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
     getLabel: function(){
         this.label = Ext.String.format(
             this.label,
-            /[^\/]*$/.exec(this.getModel()),
+            /[^\/]*$/.exec(this.portfolioItemTypes[this.targetPortfolioLevel].Name),
             /[^\/]*$/.exec(this.portfolioItemTypes[this.targetPortfolioLevel - 1].Name)
         );
         return this.label;
@@ -1721,6 +1721,77 @@ Ext.define('CA.techservices.validation.PortfolioCRCheckedNoApproval',{
         //return Rally.data.wsapi.Filter.and(filters);
     }
 });
+Ext.define('CA.techservices.validation.PortfolioNotExecutedInProgress',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsportfolio_notexecutedinprogress',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+        portfolioItemTypes:[],
+        portfolioItemStates: [],
+        targetPortfolioLevel: 0,
+        executionState: "Execution",
+
+        label: '{0}s not yet in "{1}" State with stories "In-Progress" or beyond',
+        description: '{0}s not yet in "{1}" State with stories "In-Progress" or beyond'
+    },
+    getModel:function(){
+        return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
+    },
+    getLabel: function(){
+        return Ext.String.format(this.label, this.portfolioItemTypes[this.targetPortfolioLevel].Name, this.executionState);
+    },
+    getFilters: function(){
+        var filters = [{
+            property: 'State',
+            value: null
+        }],
+            piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
+            states = this.portfolioItemStates[piName];
+
+        Ext.Array.each(states, function(state){
+            if (state === this.executionState){
+                return false;
+            }
+            filters.push({
+                property: 'State.Name',
+                value: state
+            });
+        }, this);
+
+        if (filters.length > 1){
+            filters = Rally.data.wsapi.Filter.or(filters);
+            filters = filters.and({
+                property: 'ActualStartDate',
+                operator: '>',
+                value: '1990-01-01'
+            });
+        } else {
+            filters.push({
+                property: 'ActualStartDate',
+                operator: '>',
+                value: '1990-01-01'
+            });
+            filters = Rally.data.wsapi.Filter.and(filters);
+        }
+
+        return filters;
+
+        //var executionState = this.executionState,
+        //    filters = [{
+        //    property: 'State.Name',
+        //    value: executionState
+        //},{
+        //    property: 'Release',
+        //    value: ""
+        //}];
+        //return Rally.data.wsapi.Filter.and(filters);
+    }
+});
 Ext.define('CA.techservices.validation.PortfolioFieldValue',{
     extend: 'CA.techservices.validation.BaseRule',
     alias:  'widget.tsportfolio_fieldvalue',
@@ -1749,6 +1820,17 @@ Ext.define('CA.techservices.validation.PortfolioFieldValue',{
         return msg;
     },
     getFilters: function() {
+        if (this.targetFieldValue === "No"){
+            var filters = [{
+                property: this.targetField,
+                value: this.targetFieldValue
+            },{
+                property: this.targetField,
+                value: ""
+            }];
+            return Rally.data.wsapi.Filter.or(filters);
+        }
+
         return Ext.create('Rally.data.wsapi.Filter', {
             property: this.targetField,
             value: this.targetFieldValue
@@ -1768,7 +1850,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
 
-        label: 'Orphan {0} (no parent {1})'
+        label: 'Orphan {0}s (no parent {1})'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
@@ -1968,8 +2050,8 @@ Ext.define('CA.techservices.validation.StoryInProgressCRCheckedNoApproval',{
         crApprovalField: null,
 
         model: 'HierarchicalRequirement',
-        label: 'User Stories "In Progress" with CR Checked but no CR Approval',
-        description: 'User Stories "In Progress" with CR Checked but no CR Approval',
+        label: 'Stories "In Progress" with CR Checked but no CR Approval',
+        description: 'Stories "In Progress" with CR Checked but no CR Approval',
     },
     getFilters: function() {
 
@@ -2026,8 +2108,9 @@ Ext.define('CA.techservices.validation.StoryInProgressBeforeExecution',{
         executionState: 'Execution',
 
         model: 'HierarchicalRequirement',
-        label: 'User Stories "in progress" when Feature is not in "{0}" State or beyond',
-        description: 'User Stories "in progress" when Feature is not in "{0}" State or beyond'
+        label: 'Stories "in progress" when Feature is not in "{0}" State or beyond',
+        description: 'Stories "in progress" when Feature is not in "{0}" State or beyond'
+
     },
     getLabel: function(){
         return Ext.String.format(this.label, this.executionState);
@@ -2043,7 +2126,6 @@ Ext.define('CA.techservices.validation.StoryInProgressBeforeExecution',{
             }];
 
         Ext.Array.each(states, function(state){
-
             if (state === this.executionState){
                 return false;
             }
@@ -2057,15 +2139,15 @@ Ext.define('CA.techservices.validation.StoryInProgressBeforeExecution',{
         if (filters.length > 1){
             filters = Rally.data.wsapi.Filter.or(filters);
             filters = filters.and({
-                property: 'InProgressDate',
+                property: 'ScheduleState',
                 operator: ">",
-                value: "2000-01-01"
+                value: "Defined"
             });
         } else {
             filters.push({
-                property: 'InProgressDate',
+                property: 'ScheduleState',
                 operator: ">",
-                value: "2000-01-01"
+                value: "Defined"
             });
             filters = Rally.data.wsapi.Filter.and(filters);
         }
@@ -2170,7 +2252,7 @@ Ext.define('CA.techservices.validation.StoryMissingRelease',{
         return Rally.data.wsapi.Filter.and([{
             property:'ScheduleState',
             operator:'>',
-            value: "In-Progress"
+            value: "Defined"
         },{
             property:'Release',
             value: ""
@@ -2221,8 +2303,8 @@ Ext.define('CA.techservices.validation.StoryProject',{
          */
         portfolioItemTypes:[],
         model: 'HierarchicalRequirement',
-        label: 'User Stories with incorrect "Project" field value --> should be "Team"',
-        description: 'User Stories with incorrect "Project" field value --> should be "Team"'
+        label: 'Stories with incorrect "Project" field value --> should be "Team"',
+        description: 'Stories with incorrect "Project" field value --> should be "Team"'
     },
     getFetchFields: function() {
         return ['Name','Project'];
@@ -2232,20 +2314,39 @@ Ext.define('CA.techservices.validation.StoryProject',{
         if (baseFilters){
             filters = filters.and(baseFilters);
         }
+
+        var deliveryFilters = filters.and({
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Team'
+        });
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
                 filters: filters,
                 context: {project: pg.strategyProjectRef, projectScopeDown: true}
+            },
+            deliveryConfig = {
+                model: this.getModel(),
+                filters: deliveryFilters,
+                context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
-        this._loadWsapiCount(executionConfig).then({
-            success: function(count){
-                deferred.resolve(count);
+        var promises = [
+            this._loadWsapiCount(executionConfig),
+            this._loadWsapiCount(deliveryConfig)
+        ];
+
+        Deft.Promise.all(promises).then({
+            success: function(results){
+                console.log('results', results);
+                deferred.resolve(Ext.Array.sum(results));
+
             },
             failure: function(msg){
                 deferred.reject(msg);
-            }
+            },
+            scope: this
         });
         return deferred.promise;
     },
@@ -2265,14 +2366,14 @@ Ext.define('CA.techservices.validation.StoryPlanEstimate',{
          */
         scheduleStates: null,
         model: 'HierarchicalRequirement',
-        label: 'User Stories "in progress" or beyond, without estimates',
-        description: 'User Stories "in progress" or beyond, without estimates'
+        label: 'Stories "in progress" or beyond, without estimates',
+        description: 'Stories "in progress" or beyond, without estimates'
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
             property:'ScheduleState',
             operator:'>',
-            value: "In-Progress"
+            value: "Defined"
         },{
             property:'PlanEstimate',
             value: ""
@@ -2298,10 +2399,10 @@ Ext.define("data-hygiene", {
 
     config: {
         defaultSettings: {
-            portfolioAOPField: 'Ready',
-            portfolioCRField: 'Ready',
+            portfolioAOPField: 'c_AOP',
+            portfolioCRField: 'c_CR',
             portfolioCRApprovalField: 'c_CRApprovedDate',
-            userStoryCRField: 'Ready',
+            userStoryCRField: 'c_CR',
             userStoryCRApprovalField: 'c_CRApprovedDate',
             projectGroups: [],
             query: null,
@@ -2613,9 +2714,8 @@ Ext.define("data-hygiene", {
             });
         }
         if (type === 'HierarchicalRequirement'){
-            name = 'User Story';
+            name = 'Story';
         }
-
         return name;
     },
     getPortfolioAOPField: function(){
@@ -2672,22 +2772,22 @@ Ext.define("data-hygiene", {
             portfolioItemStates: this.portfolioItemStates,
             projectGroups: this.getProjectGroups()
         },{
+        //    xtype: 'tsportfolio_fieldvalue',
+        //    targetPortfolioLevel: 1,
+        //    portfolioItemTypes: this.portfolioItemTypes,
+        //    targetField: this.getPortfolioAOPField(),
+        //    label: '{0}s with "AOP Approved" field checked',
+        //    description: '{0}s with "AOP Approved" field checked',
+        //    targetFieldValue: true,
+        //    projectGroups: this.getProjectGroups()
+        //},{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 1,
             portfolioItemTypes: this.portfolioItemTypes,
             targetField: this.getPortfolioAOPField(),
-            label: '{0}s with "AOP Approved" field checked',
-            description: '{0}s with "AOP Approved" field checked',
-            targetFieldValue: true,
-            projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsportfolio_fieldvalue',
-            targetPortfolioLevel: 1,
-            portfolioItemTypes: this.portfolioItemTypes,
-            targetField: this.getPortfolioAOPField(),
-            label: '{0}s with "AOP Approved" field <b>not</b> checked',
-            description: '{0}s with "AOP Approved" field <b>not</b> checked',
-            targetFieldValue: false,
+            label: '{0}s not "AOP Approved"',
+            description: '{0}s not "AOP Approved"',
+            targetFieldValue: "No",
             projectGroups: this.getProjectGroups()
         },{
             xtype:'tsportfolio_orphan',
@@ -2708,15 +2808,15 @@ Ext.define("data-hygiene", {
             description: '{0}s with "CR" field checked',
             targetFieldValue: true,
             projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsportfolio_fieldvalue',
-            targetPortfolioLevel: 0,
-            portfolioItemTypes: this.portfolioItemTypes,
-            targetField: this.getPortfolioCRField(),
-            label: '{0}s with "CR" field <b>not</b> checked',
-            description: '{0}s with "CR" field <b>not</b> checked',
-            targetFieldValue: false,
-            projectGroups: this.getProjectGroups()
+        //},{
+        //    xtype: 'tsportfolio_fieldvalue',
+        //    targetPortfolioLevel: 0,
+        //    portfolioItemTypes: this.portfolioItemTypes,
+        //    targetField: this.getPortfolioCRField(),
+        //    label: '{0}s with "CR" field <b>not</b> checked',
+        //    description: '{0}s with "CR" field <b>not</b> checked',
+        //    targetFieldValue: false,
+        //    projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_staterelease',
             portfolioItemTypes: this.portfolioItemTypes,
@@ -2731,6 +2831,10 @@ Ext.define("data-hygiene", {
             portfolioItemStates: this.portfolioItemStates,
             crField: this.getPortfolioCRField(),
             crApprovalField: this.getPortfolioCRApprovalField()
+        },{
+            xtype: 'tsportfolio_notexecutedinprogress',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
         },{
             xtype:'tsstory_orphan',
             portfolioItemTypes: this.portfolioItemTypes,
@@ -2754,22 +2858,22 @@ Ext.define("data-hygiene", {
         },{
             xtype: 'tsstory_fieldvalue',
             targetField: this.getStoryCRField(),
-            label: 'User Stories with "CR" field checked',
-            description: 'User Stories with "CR" field checked',
+            label: 'Stories with "CR" field checked',
+            description: 'Stories with "CR" field checked',
             targetFieldValue: true,
             projectGroups: this.getProjectGroups()
         },{
-            xtype: 'tsstory_fieldvalue',
-            targetField: this.getStoryCRField(),
-            label: 'User Stories with "CR" field <b>not</b> checked',
-            description: 'User Stories with "CR" field <b>not</b> checked',
-            targetFieldValue: false,
-            projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsstory_inprogressbeforeexecution',
-            portfolioItemTypes: this.portfolioItemTypes,
-            portfolioItemStates: this.portfolioItemStates
-        },{
+        //    xtype: 'tsstory_fieldvalue',
+        //    targetField: this.getStoryCRField(),
+        //    label: 'User Stories with "CR" field <b>not</b> checked',
+        //    description: 'User Stories with "CR" field <b>not</b> checked',
+        //    targetFieldValue: false,
+        //    projectGroups: this.getProjectGroups()
+        //},{
+        //    xtype: 'tsstory_inprogressbeforeexecution',
+        //    portfolioItemTypes: this.portfolioItemTypes,
+        //    portfolioItemStates: this.portfolioItemStates
+        //},{
             xtype: 'tsstory_inprogresscrcheckednoapproval',
             crField: this.getStoryCRField(),
             crApprovalField: this.getStoryCRApprovalField()
@@ -2786,40 +2890,6 @@ Ext.define("data-hygiene", {
             orFilter = this.getSetting('orFilter') === "true" || this.getSetting('orFilter') === true;
 
         return [{
-            xtype: 'container',
-            html: '<div class="rally-upper-bold">Field Configuration</div>',
-        },{
-            xtype: 'rallyfieldcombobox',
-            name: 'portfolioAOPField',
-            model: 'PortfolioItem',
-            fieldLabel: 'Portfolio AOP Approved Field',
-            labelAlign: 'right',
-            labelWidth: labelWidth,
-            _isNotHidden: function(field) {
-                return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
-            }
-
-        },{
-            xtype: 'rallyfieldcombobox',
-            name: 'portfolioCRField',
-            model: 'PortfolioItem',
-            fieldLabel: 'Portfolio CR Field',
-            labelAlign: 'right',
-            labelWidth: labelWidth,
-            _isNotHidden: function(field) {
-                return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
-            }
-        },{
-            xtype: 'rallyfieldcombobox',
-            name: 'userStoryCRField',
-            model: 'HierarchicalRequirement',
-            fieldLabel: 'User Story CR Field',
-            labelAlign: 'right',
-            labelWidth: labelWidth,
-            _isNotHidden: function(field) {
-                return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
-            }
-        },{
             xtype: 'container',
             margin: '25 0 0 0',
             html: '<div class="rally-upper-bold">Filter by Date</div>',

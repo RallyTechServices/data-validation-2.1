@@ -3,12 +3,12 @@
 <head>
     <title>Data Quality Dashboard</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Nov 10 2016 13:05:20 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 20 2017 16:58:00 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Nov 10 2016 13:05:20 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Fri Jan 20 2017 16:58:00 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 43471466271;
+        var CHECKSUM = 56895690842;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -234,10 +234,11 @@ Ext.define('CA.technicalservices.dataquality.common.BaseRule',{
     detailFetchFields: null,
 
     constructor: function(config) {
-        console.log('beforeconfig', config, this);
         this.initialConfig = config;
         Ext.apply(this,config);
-        console.log('afterconfig', config, this);
+    },
+    getUseRallyGrid: function(){
+        return false;
     },
     getFeatureName: function(){
         return this.portfolioItemTypes && this.portfolioItemTypes.length > 1 &&
@@ -296,6 +297,170 @@ Ext.define('CA.technicalservices.dataquality.common.BaseRule',{
             operator:'>',
             value: 0
         });
+    },
+    getDetailFilters: function(){
+        return this.getFilters();
+    },
+    getDetailColumnCfgs: function(){
+        return this.getDetailFetchFields();
+    },
+    _loadWsapiRecords: function(config) {
+        var deferred = Ext.create('Deft.Deferred');
+
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation){
+                if (operation.wasSuccessful()){
+                    var result = {};
+                    result[config.model] = records;
+                    deferred.resolve(records);
+                } else {
+                    deferred.reject(operation.error.errors.join(','));
+                }
+            }
+        });
+        return deferred.promise;
+    }
+});
+Ext.define('CA.technicalservices.dataquality.common.LeafProjectBuildPercentRule',{
+    extend: 'CA.technicalservices.dataquality.common.BaseRule',
+    alias:  'widget.rule_leafprojectbuildpercentrule',
+
+    getUseRallyGrid: function(){
+        return true;
+    },
+    getCount: function(projectID, projectUtility){
+        var deferred = Ext.create('Deft.Deferred');
+
+        if (this.recordData){
+            var count = this._processRecords(projectID, projectUtility).length;
+            deferred.resolve(count);
+        } else {
+            var projectRef= '/project/' + projectID,
+                config = {
+                    model: this.getModel(),
+                    fetch: this.getFetchFields(),
+                    filters: this.getFilters(),
+                    context: {project: projectRef, projectScopeDown: true},
+                    limit: Infinity
+                };
+
+            this._loadWsapiRecords(config).then({
+                success: function(records){
+                    this.recordData = _.map(records, function(r){ return r.getData(); });
+                    var count = this._processRecords(projectID, projectUtility).length;
+                    deferred.resolve(count);
+                },
+                scope: this
+            });
+        }
+        return deferred;
+    },
+    _processRecords: function(projectID,projectUtility){
+        var children = projectUtility.getAllChildren(projectID),
+            oids = [];
+
+        Ext.Array.each(this.recordData, function(r){
+            if (Ext.Array.contains(children, r.ObjectID)){
+                oids.push(r.ObjectID);
+            }
+        });
+
+       return oids;
+    },
+    getDetailFilters: function(projectID, projectUtility){
+        var oids = this._processRecords(projectID, projectUtility);
+        var filters = Ext.Array.map(oids, function(o){ return {
+                property: 'ObjectID',
+                value: o
+            };
+        });
+        if (filters && filters.length > 1){
+            return Rally.data.wsapi.Filter.or(filters);
+        }
+        return filters;
+
+    },
+    getDetailColumnConfigs: function(){
+        return [{
+            dataIndex: 'Name',
+            text: 'Name'
+        },{
+            dataIndex: 'c_BuildPercent',
+            text: 'Build Percent'
+        }]
+    }
+});
+Ext.define('CA.technicalservices.dataquality.common.TeamAssignmentInconsistency',{
+    extend: 'CA.technicalservices.dataquality.common.BaseRule',
+    alias:  'widget.rule_teamassignmentinconsistency',
+    getCount: function(projectID, projectUtility){
+        var deferred = Ext.create('Deft.Deferred');
+
+        var projectRef= '/project/' + projectID,
+            config = {
+                model: this.getModel(),
+                fetch: ['ObjectID','Project','Owner','c_WorkdayTeam'],
+                filters: this.getFilters(),
+                context: {project: projectRef, projectScopeDown: true},
+                compact: false,
+                pageSize: 2000,
+                limit: Infinity
+            };
+
+        this._loadWsapiRecords(config).then({
+            success: function(records){
+                var recordData = _.map(records, function(r){ return r.getData(); }),
+                    obj = this._processRecords(recordData);
+
+                if (!this.flaggedItems){
+                    this.flaggedItems = {};
+                }
+                this.flaggedItems[projectID] = obj;
+
+                deferred.resolve(obj.count);
+            },
+            scope: this
+        });
+        return deferred;
+    },
+    _processRecords: function(recordData){
+        var flaggedStories = [],
+            count = 0;
+
+        for (var i=0; i<recordData.length; i++){
+            var r = recordData[i];
+            if (Number(r.Owner.c_WorkdayTeam) !== r.Project.ObjectID){
+                flaggedStories.push(r.ObjectID);
+                count++;
+            }
+        }
+        return {
+            count: count,
+            flaggedStories: flaggedStories
+        };
+        //return affectedProjects;
+    },
+    getDetailFilters: function(projectID, projectUtility){
+
+        var obj = this.flaggedItems[projectID],
+            stories = obj.flaggedStories;
+
+        var filters = Ext.Array.map(stories, function(o){ return {
+                property: 'ObjectID',
+                value: o
+            };
+        });
+
+        if (filters && filters.length > 1){
+             return Rally.data.wsapi.Filter.or(filters);
+        }
+        if (filters.length === 0){
+            filters = {
+                property: 'ObjectID',
+                value: 0
+            };
+        }
+        return filters;
     }
 });
 /**
@@ -704,11 +869,14 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         model: 'PortfolioItem/Feature',
         unitLabel: 'features',
         query: '((Parent = null) AND (InvestmentCategory = "Build"))',
-        detailFetchFields: ['FormattedID','Name','Parent','State']
-
+        detailFetchFields: ['FormattedID','Name','Parent','State'],
+        flagRed: true,
+        flagYellow: false
     },{
 
         label: 'Orphaned Stories',
+        flagRed: false,
+        flagYellow: false,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Story is not in "Unelaborated" ScheduleState ' +
         '<li>Story Type is "Standard" or null' +
@@ -717,10 +885,11 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         model: 'HierarchicalRequirement',
         detailFetchFields: ['FormattedID','Name','Feature','Parent','ScheduleState','c_StoryType'],
         query: '(((c_StoryType = "Standard") OR (c_StoryType = "")) AND (((Feature = null) AND (ScheduleState > "Unelaborated")) AND (Project.c_BuildPercent != 0)))'
-
     },{
 
         label: 'Stories not sized',
+        flagRed: false,
+        flagYellow: true,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Parent Initiative has an Investment Category = "Build" ' +
         '<li>Parent Initiative state is "In-Progress" or "Staging" ' +
@@ -734,6 +903,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Active Stories / Inactive Initiatives',
+        watchColor: null,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Parent Initiative has an Investment Category = "Build" ' +
         '<li>Parent Initiative is NOT active (state is NOT "In-Progress" or "Staging") ' +
@@ -745,7 +915,8 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
 
     },{
 
-        label: 'Active Stories on Parent Teams',
+            label: 'Active Stories on Parent Teams',
+        watchColor: null,
         description: 'Counting stories where:<br><li>Assigned Team a build percent != 0 (is > 0 or null). ' +
         '<li>Parent Initiative has an Investment Category = "Build" ' +
         '<li>Parent Initiative is active (state is "In-Progress" or "Staging") ' +
@@ -758,6 +929,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Strategy Category',
+        watchColor: null,
         description: 'Counting initiatives where:<br>' +
         '<li>Initiative has an Investment Category = "Build" ' +
         '<li>Strategy Category is null',
@@ -769,6 +941,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Active Stories / Team with no people',
+        watchColor: null,
         description: 'Counting stories where:<br>' +
         '<li>Initiative has an Investment Category = "Build" ' +
         '<li>Initiative is active (state is "In-Progress" or "Staging") ' +
@@ -782,6 +955,7 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     },{
 
         label: 'Features not sized',
+        watchColor: null,
         description: 'Counting features where:' +
         '<li>Initiative is Build' +
         '<li>Initiative is active (state is "In-Progress" or "Staging")' +
@@ -808,7 +982,21 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
     }],
 
     //Add rules to this array that you only want in the "Drilldown App" but not on the "Pretty" dashboard.
-    drilldownRules: []
+    drilldownRules: [{
+        label: 'Build Percent null',
+        description: 'Counting leaf node projects where the Build Percent field is null',
+        model: 'Project',
+        detailFetchFields: ['Name','c_BuildPercent'],
+        query: '((c_BuildPercent = "") AND (Children.State != "Open"))',
+        exceptionClass: 'rule_leafprojectbuildpercentrule'
+    },{
+        label: 'Teams assignment is inconsistent between Owner and Story',
+        description: 'Counting Active stories and child stories where the project object id is different than the value in the Workday Team on the owners person record.  Data will not include stories with Owners that do not belong to a Workday Team',
+        model: 'HierarchicalRequirement',
+        detailFetchFields: ['ObjectID','Name','Owner','Project'],
+        query: '((((ScheduleState = "Defined") OR (ScheduleState = "In-Progress")) OR (ScheduleState = "Completed")) AND (Owner.c_WorkdayTeam != ""))',
+        exceptionClass: 'rule_teamassignmentinconsistency'
+    }]
 
 });
 /**

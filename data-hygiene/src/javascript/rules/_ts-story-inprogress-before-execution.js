@@ -12,8 +12,9 @@ Ext.define('CA.techservices.validation.StoryInProgressBeforeExecution',{
         executionState: 'Execution',
 
         model: 'HierarchicalRequirement',
-        label: 'User Stories "in progress" when Feature is not in "{0}" State or beyond',
-        description: 'User Stories "in progress" when Feature is not in "{0}" State or beyond'
+        label: 'Stories "in progress" when Feature is not in "{0}" State or beyond',
+        description: 'Stories "in progress" when Feature is not in "{0}" State or beyond'
+
     },
     getLabel: function(){
         return Ext.String.format(this.label, this.executionState);
@@ -29,7 +30,6 @@ Ext.define('CA.techservices.validation.StoryInProgressBeforeExecution',{
             }];
 
         Ext.Array.each(states, function(state){
-
             if (state === this.executionState){
                 return false;
             }
@@ -43,15 +43,15 @@ Ext.define('CA.techservices.validation.StoryInProgressBeforeExecution',{
         if (filters.length > 1){
             filters = Rally.data.wsapi.Filter.or(filters);
             filters = filters.and({
-                property: 'InProgressDate',
+                property: 'ScheduleState',
                 operator: ">",
-                value: "2000-01-01"
+                value: "Defined"
             });
         } else {
             filters.push({
-                property: 'InProgressDate',
+                property: 'ScheduleState',
                 operator: ">",
-                value: "2000-01-01"
+                value: "Defined"
             });
             filters = Rally.data.wsapi.Filter.and(filters);
         }
