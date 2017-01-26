@@ -17,7 +17,7 @@ Ext.define('CA.techservices.validation.StoryMissingRelease',{
         return Rally.data.wsapi.Filter.and([{
             property:'ScheduleState',
             operator:'>',
-            value: "In-Progress"
+            value: "Defined"
         },{
             property:'Release',
             value: ""

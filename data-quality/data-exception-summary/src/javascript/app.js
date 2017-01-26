@@ -34,6 +34,7 @@ Ext.define("data-exception-summary", {
             }
         });
     },
+
     showErrorNotification: function(msg){
         Rally.ui.notify.Notifier.showError({message:msg});
     },

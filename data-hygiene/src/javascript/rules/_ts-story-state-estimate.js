@@ -10,14 +10,14 @@ Ext.define('CA.techservices.validation.StoryPlanEstimate',{
          */
         scheduleStates: null,
         model: 'HierarchicalRequirement',
-        label: 'User Stories "in progress" or beyond, without estimates',
-        description: 'User Stories "in progress" or beyond, without estimates'
+        label: 'Stories "in progress" or beyond, without estimates',
+        description: 'Stories "in progress" or beyond, without estimates'
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
             property:'ScheduleState',
             operator:'>',
-            value: "In-Progress"
+            value: "Defined"
         },{
             property:'PlanEstimate',
             value: ""

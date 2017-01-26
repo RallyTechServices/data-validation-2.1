@@ -11,7 +11,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
 
-        label: 'Orphan {0} (no parent {1})'
+        label: 'Orphan {0}s (no parent {1})'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;

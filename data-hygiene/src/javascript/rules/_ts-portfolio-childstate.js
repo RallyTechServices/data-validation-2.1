@@ -11,8 +11,8 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
         portfolioItemTypes:[],
         targetPortfolioLevel: 1,
 
-        label: '{0} in "No Entry” state with {1}s in "Front Door" state or beyond',
-        description: '{0} in "No Entry” state with {1}s in "Front Door" state or beyond'
+        label: '{0}s in "No Entry” state with {1}s in "Front Door" state or beyond',
+        description: '{0}s in "No Entry” state with {1}s in "Front Door" state or beyond'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
@@ -20,7 +20,7 @@ Ext.define('CA.techservices.validation.PortfolioChildState',{
     getLabel: function(){
         this.label = Ext.String.format(
             this.label,
-            /[^\/]*$/.exec(this.getModel()),
+            /[^\/]*$/.exec(this.portfolioItemTypes[this.targetPortfolioLevel].Name),
             /[^\/]*$/.exec(this.portfolioItemTypes[this.targetPortfolioLevel - 1].Name)
         );
         return this.label;

@@ -12,8 +12,8 @@ Ext.define('CA.techservices.validation.StoryInProgressCRCheckedNoApproval',{
         crApprovalField: null,
 
         model: 'HierarchicalRequirement',
-        label: 'User Stories "In Progress" with CR Checked but no CR Approval',
-        description: 'User Stories "In Progress" with CR Checked but no CR Approval',
+        label: 'Stories "In Progress" with CR Checked but no CR Approval',
+        description: 'Stories "In Progress" with CR Checked but no CR Approval',
     },
     getFilters: function() {
 

@@ -3,12 +3,12 @@
 <head>
     <title>Data Exception Drilldown App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Dec 01 2016 10:40:07 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 20 2017 17:05:41 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Dec 01 2016 10:40:07 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Fri Jan 20 2017 17:05:41 GMT-0700 (MST)";
         var BUILDER = "kcorkan";
-        var CHECKSUM = 104379506890;
+        var CHECKSUM = 104379508841;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -966,9 +966,9 @@ Ext.define('CA.technicalservices.dataquality.common.Rules',{
         query: '((((Parent.State.Name = "In-Progress") OR (Parent.State.Name = "Staging")) AND (Parent.InvestmentCategory = "Build")) AND (PreliminaryEstimate = ""))'
     }],
 
+
     //Add rules to this array that you only want on the "Pretty" dashboard and not in the drilldown app
     prettyRules: [{
-
         label: 'Misaliged Feature / Intiative Investment Category',
         description: 'Counting features where:' +
         '<li>Initiative Investment Category is "Build"' +
@@ -1737,6 +1737,7 @@ Ext.define("data-exception-summary", {
             }
         });
     },
+
     showErrorNotification: function(msg){
         Rally.ui.notify.Notifier.showError({message:msg});
     },

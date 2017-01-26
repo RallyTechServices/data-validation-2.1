@@ -26,6 +26,17 @@ Ext.define('CA.techservices.validation.PortfolioFieldValue',{
         return msg;
     },
     getFilters: function() {
+        if (this.targetFieldValue === "No"){
+            var filters = [{
+                property: this.targetField,
+                value: this.targetFieldValue
+            },{
+                property: this.targetField,
+                value: ""
+            }];
+            return Rally.data.wsapi.Filter.or(filters);
+        }
+
         return Ext.create('Rally.data.wsapi.Filter', {
             property: this.targetField,
             value: this.targetFieldValue

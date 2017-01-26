@@ -17,10 +17,10 @@ Ext.define("data-hygiene", {
 
     config: {
         defaultSettings: {
-            portfolioAOPField: 'Ready',
-            portfolioCRField: 'Ready',
+            portfolioAOPField: 'c_AOP',
+            portfolioCRField: 'c_CR',
             portfolioCRApprovalField: 'c_CRApprovedDate',
-            userStoryCRField: 'Ready',
+            userStoryCRField: 'c_CR',
             userStoryCRApprovalField: 'c_CRApprovedDate',
             projectGroups: [],
             query: null,
@@ -332,9 +332,8 @@ Ext.define("data-hygiene", {
             });
         }
         if (type === 'HierarchicalRequirement'){
-            name = 'User Story';
+            name = 'Story';
         }
-
         return name;
     },
     getPortfolioAOPField: function(){
@@ -391,22 +390,22 @@ Ext.define("data-hygiene", {
             portfolioItemStates: this.portfolioItemStates,
             projectGroups: this.getProjectGroups()
         },{
+        //    xtype: 'tsportfolio_fieldvalue',
+        //    targetPortfolioLevel: 1,
+        //    portfolioItemTypes: this.portfolioItemTypes,
+        //    targetField: this.getPortfolioAOPField(),
+        //    label: '{0}s with "AOP Approved" field checked',
+        //    description: '{0}s with "AOP Approved" field checked',
+        //    targetFieldValue: true,
+        //    projectGroups: this.getProjectGroups()
+        //},{
             xtype: 'tsportfolio_fieldvalue',
             targetPortfolioLevel: 1,
             portfolioItemTypes: this.portfolioItemTypes,
             targetField: this.getPortfolioAOPField(),
-            label: '{0}s with "AOP Approved" field checked',
-            description: '{0}s with "AOP Approved" field checked',
-            targetFieldValue: true,
-            projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsportfolio_fieldvalue',
-            targetPortfolioLevel: 1,
-            portfolioItemTypes: this.portfolioItemTypes,
-            targetField: this.getPortfolioAOPField(),
-            label: '{0}s with "AOP Approved" field <b>not</b> checked',
-            description: '{0}s with "AOP Approved" field <b>not</b> checked',
-            targetFieldValue: false,
+            label: '{0}s not "AOP Approved"',
+            description: '{0}s not "AOP Approved"',
+            targetFieldValue: "No",
             projectGroups: this.getProjectGroups()
         },{
             xtype:'tsportfolio_orphan',
@@ -427,15 +426,15 @@ Ext.define("data-hygiene", {
             description: '{0}s with "CR" field checked',
             targetFieldValue: true,
             projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsportfolio_fieldvalue',
-            targetPortfolioLevel: 0,
-            portfolioItemTypes: this.portfolioItemTypes,
-            targetField: this.getPortfolioCRField(),
-            label: '{0}s with "CR" field <b>not</b> checked',
-            description: '{0}s with "CR" field <b>not</b> checked',
-            targetFieldValue: false,
-            projectGroups: this.getProjectGroups()
+        //},{
+        //    xtype: 'tsportfolio_fieldvalue',
+        //    targetPortfolioLevel: 0,
+        //    portfolioItemTypes: this.portfolioItemTypes,
+        //    targetField: this.getPortfolioCRField(),
+        //    label: '{0}s with "CR" field <b>not</b> checked',
+        //    description: '{0}s with "CR" field <b>not</b> checked',
+        //    targetFieldValue: false,
+        //    projectGroups: this.getProjectGroups()
         },{
             xtype: 'tsportfolio_staterelease',
             portfolioItemTypes: this.portfolioItemTypes,
@@ -450,6 +449,10 @@ Ext.define("data-hygiene", {
             portfolioItemStates: this.portfolioItemStates,
             crField: this.getPortfolioCRField(),
             crApprovalField: this.getPortfolioCRApprovalField()
+        },{
+            xtype: 'tsportfolio_notexecutedinprogress',
+            portfolioItemTypes: this.portfolioItemTypes,
+            portfolioItemStates: this.portfolioItemStates
         },{
             xtype:'tsstory_orphan',
             portfolioItemTypes: this.portfolioItemTypes,
@@ -473,22 +476,22 @@ Ext.define("data-hygiene", {
         },{
             xtype: 'tsstory_fieldvalue',
             targetField: this.getStoryCRField(),
-            label: 'User Stories with "CR" field checked',
-            description: 'User Stories with "CR" field checked',
+            label: 'Stories with "CR" field checked',
+            description: 'Stories with "CR" field checked',
             targetFieldValue: true,
             projectGroups: this.getProjectGroups()
         },{
-            xtype: 'tsstory_fieldvalue',
-            targetField: this.getStoryCRField(),
-            label: 'User Stories with "CR" field <b>not</b> checked',
-            description: 'User Stories with "CR" field <b>not</b> checked',
-            targetFieldValue: false,
-            projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsstory_inprogressbeforeexecution',
-            portfolioItemTypes: this.portfolioItemTypes,
-            portfolioItemStates: this.portfolioItemStates
-        },{
+        //    xtype: 'tsstory_fieldvalue',
+        //    targetField: this.getStoryCRField(),
+        //    label: 'User Stories with "CR" field <b>not</b> checked',
+        //    description: 'User Stories with "CR" field <b>not</b> checked',
+        //    targetFieldValue: false,
+        //    projectGroups: this.getProjectGroups()
+        //},{
+        //    xtype: 'tsstory_inprogressbeforeexecution',
+        //    portfolioItemTypes: this.portfolioItemTypes,
+        //    portfolioItemStates: this.portfolioItemStates
+        //},{
             xtype: 'tsstory_inprogresscrcheckednoapproval',
             crField: this.getStoryCRField(),
             crApprovalField: this.getStoryCRApprovalField()
@@ -505,40 +508,6 @@ Ext.define("data-hygiene", {
             orFilter = this.getSetting('orFilter') === "true" || this.getSetting('orFilter') === true;
 
         return [{
-            xtype: 'container',
-            html: '<div class="rally-upper-bold">Field Configuration</div>',
-        },{
-            xtype: 'rallyfieldcombobox',
-            name: 'portfolioAOPField',
-            model: 'PortfolioItem',
-            fieldLabel: 'Portfolio AOP Approved Field',
-            labelAlign: 'right',
-            labelWidth: labelWidth,
-            _isNotHidden: function(field) {
-                return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
-            }
-
-        },{
-            xtype: 'rallyfieldcombobox',
-            name: 'portfolioCRField',
-            model: 'PortfolioItem',
-            fieldLabel: 'Portfolio CR Field',
-            labelAlign: 'right',
-            labelWidth: labelWidth,
-            _isNotHidden: function(field) {
-                return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
-            }
-        },{
-            xtype: 'rallyfieldcombobox',
-            name: 'userStoryCRField',
-            model: 'HierarchicalRequirement',
-            fieldLabel: 'User Story CR Field',
-            labelAlign: 'right',
-            labelWidth: labelWidth,
-            _isNotHidden: function(field) {
-                return !field.hidden && field.attributeDefinition && field.attributeDefinition.AttributeType === "BOOLEAN";
-            }
-        },{
             xtype: 'container',
             margin: '25 0 0 0',
             html: '<div class="rally-upper-bold">Filter by Date</div>',
