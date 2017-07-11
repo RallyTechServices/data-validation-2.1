@@ -40,15 +40,15 @@ Ext.define('CA.techservices.validation.StoryProject',{
             };
 
         var promises = [
-            this._loadWsapiCount(executionConfig),
-            this._loadWsapiCount(deliveryConfig)
+            this._loadWsapiRecords(executionConfig),
+            this._loadWsapiRecords(deliveryConfig)
         ];
 
         Deft.Promise.all(promises).then({
             success: function(results){
                 console.log('results', results);
-                deferred.resolve(Ext.Array.sum(results));
-
+                //deferred.resolve(Ext.Array.sum(results));
+                deferred.resolve(results);
             },
             failure: function(msg){
                 deferred.reject(msg);

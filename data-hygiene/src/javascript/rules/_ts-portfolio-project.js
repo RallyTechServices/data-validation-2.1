@@ -38,9 +38,9 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
                 context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
-        this._loadWsapiCount(executionConfig).then({
-            success: function(count){
-                deferred.resolve(count);
+        this._loadWsapiRecords(executionConfig).then({
+            success: function(records){
+                deferred.resolve(records);
             },
             failure: function(msg){
                 deferred.reject(msg);
