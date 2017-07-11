@@ -45,16 +45,18 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
             this._loadWsapiRecords(executionConfig)
         ]).then({
             success: function(results){
+                var filtered_records = [];
                 var records = _.flatten(results),
                     count = 0;
                 Ext.Array.each(records, function(r){
                     var release = r.get('Release') && r.get('Release').Name || null,
                         featureRelease = r.get(featureName) && r.get(featureName).Release && r.get(featureName).Release.Name || null;
                     if (release != featureRelease){
+                        filtered_records.push(r);
                         count++;
                     }
                 });
-                deferred.resolve(count);
+                deferred.resolve(filtered_records);
             },
             failure: function(msg){
                 deferred.reject(msg);

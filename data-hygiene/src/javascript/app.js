@@ -155,7 +155,7 @@ Ext.define("data-hygiene", {
             //}
             Ext.Array.each(projects, function(p){
                 //ruleHash[cd.ruleName][cd.type][p] = cd[p] || 0;
-                ruleHash[cd.ruleName][p] = cd[p] || 0;
+                ruleHash[cd.ruleName][p] = _.flatten(cd[p]).length;
             });
         });
 
@@ -181,6 +181,7 @@ Ext.define("data-hygiene", {
         this.logger.log('chartData', series, projects);
         this.getChartBox().add({
             xtype: 'rallychart',
+            chartColors: CA.apps.charts.Colors.getConsistentBarColors(),
             chartConfig: {
                 chart: {
                     type: 'bar',
@@ -200,7 +201,8 @@ Ext.define("data-hygiene", {
                     {
                         title: {
                             text: 'Artifact Count'
-                        }
+                        },
+                         reversedStacks: false
                     }
                 ],
                 plotOptions: {
@@ -285,6 +287,7 @@ Ext.define("data-hygiene", {
 
     },
     _buildSubGrid: function(type, data){
+        var me = this;
         var fields = [];
 
         if (data && data.length > 0){
@@ -307,7 +310,11 @@ Ext.define("data-hygiene", {
                 columnCfgs.push({
                     dataIndex: f,
                     text: f,
-                    align: 'center'
+                    align: 'center',
+                    renderer: function(value){
+                        //return Ext.String.format('<a onclick="me.showDrillDown({0})">{1}</a>', _.flatten(value), _.flatten(value).length);
+                        return _.flatten(value).length;
+                    }
                 });
             }
         });
@@ -319,8 +326,74 @@ Ext.define("data-hygiene", {
             columnCfgs: columnCfgs,
             showPagingToolbar: false,
             showRowActionsColumn: false
+            ,
+            viewConfig: {
+                listeners: {
+                    cellclick: this.showDrillDown,
+                    scope: this
+                }
+            }
         });
     },
+
+    showDrillDown: function(view, cell, cellIndex, record) {
+        console.log('view, cell, cellIndex, record',view, cell, cellIndex, record);
+        var me = this;
+        var clickedDataIndex = view.panel.headerCt.getHeaderAtIndex(cellIndex).dataIndex;
+        var ruleValue = record.get(clickedDataIndex);
+
+        var store = Ext.create('Rally.data.custom.Store', {
+            data: _.flatten(ruleValue),
+            pageSize: 2000
+        });
+        
+        var title = record.data.ruleName + ' for ' + clickedDataIndex || ""
+        
+        Ext.create('Rally.ui.dialog.Dialog', {
+            id        : 'detailPopup',
+            title     : title,
+            width     : Ext.getBody().getWidth() - 150,
+            height    : Ext.getBody().getHeight() - 150,
+            closable  : true,
+            layout    : 'border',
+            items     : [
+            {
+                xtype                : 'rallygrid',
+                region               : 'center',
+                layout               : 'fit',
+                sortableColumns      : true,
+                showRowActionsColumn : false,
+                //showPagingToolbar    : false,
+                columnCfgs           : this.getDrillDownColumns(title),
+                store : store
+            }]
+        }).show();
+    },
+
+    getDrillDownColumns: function(title) {
+        return [
+            {
+                dataIndex: 'FormattedID',
+                text: "id",
+                renderer: function(m,v,r){
+                  return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate').apply(r.data);
+                }
+            },
+            {
+                dataIndex : 'Name',
+                text: "Name",
+                flex: 1
+            },
+            {
+                dataIndex : 'Owner',
+                text: "Owner",
+                renderer: function(value){
+                    return value._refObjectName
+                }
+            }
+        ];
+    },
+
     getUserFriendlyName: function(type){
         var name = '';
         if (/PortfolioItem/.test(type)){
@@ -473,14 +546,16 @@ Ext.define("data-hygiene", {
             portfolioItemTypes: this.portfolioItemTypes,
             scheduleStates: this.scheduleStates,
             projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsstory_fieldvalue',
-            targetField: this.getStoryCRField(),
-            label: 'Stories with "CR" field checked',
-            description: 'Stories with "CR" field checked',
-            targetFieldValue: true,
-            projectGroups: this.getProjectGroups()
-        },{
+        },
+        // {
+        //     xtype: 'tsstory_fieldvalue',
+        //     targetField: this.getStoryCRField(),
+        //     label: 'Stories with "CR" field checked',
+        //     description: 'Stories with "CR" field checked',
+        //     targetFieldValue: true,
+        //     projectGroups: this.getProjectGroups()
+        // },
+        {
         //    xtype: 'tsstory_fieldvalue',
         //    targetField: this.getStoryCRField(),
         //    label: 'User Stories with "CR" field <b>not</b> checked',

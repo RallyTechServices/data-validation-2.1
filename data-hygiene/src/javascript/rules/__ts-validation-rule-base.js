@@ -71,11 +71,12 @@ Ext.define('CA.techservices.validation.BaseRule',{
             };
 
         Deft.Promise.all([
-            this._loadWsapiCount(strategyConfig),
-            this._loadWsapiCount(executionConfig)
+            this._loadWsapiRecords(strategyConfig),
+            this._loadWsapiRecords(executionConfig)
         ]).then({
             success: function(results){
-                deferred.resolve(Ext.Array.sum(results));
+                // deferred.resolve(Ext.Array.sum(results));
+                deferred.resolve(results);
             },
             failure: function(msg){
                 deferred.reject(msg);

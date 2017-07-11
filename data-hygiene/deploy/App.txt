@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Jan 26 2017 13:04:07 GMT-0700 (MST) -->
+    <!--  Build Date: Mon Jul 10 2017 21:26:58 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Jan 26 2017 13:04:07 GMT-0700 (MST)";
-        var BUILDER = "kcorkan";
-        var CHECKSUM = 205427241346;
+        var APP_BUILD_DATE = "Mon Jul 10 2017 21:26:58 GMT-0700 (PDT)";
+        var BUILDER = "rajan08";
+        var CHECKSUM = 222570160141;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -1102,6 +1102,71 @@ Ext.define('CA.techservices.validator.Validator',{
         return deferred.promise;
     }
 });
+Ext.define("CA.apps.charts.Colors", {
+    
+    singleton: true, 
+    
+    // RGB values obtained from here: http://ux-blog.rallydev.com/?cat=23
+    grey4: "#C0C0C0",  // $grey4
+    orange: "#FF8200",  // $orange
+    gold: "#F6A900",  // $gold
+    yellow: "#FAD200",  // $yellow
+    lime: "#8DC63F",  // $lime
+    green_dk: "#1E7C00",  // $green_dk
+    blue_link: "#337EC6",  // $blue_link
+    blue: "#005EB8",  // $blue
+    blue_dark: '#00386e', 
+    blue_light: '#b2cee9',
+    purple : "#7832A5",  // $purple,
+    pink : "#DA1884",   // $pink,
+    grey7 : "#666",
+    red : '#FF2A00',
+    green : '#00FF2A',
+
+    cumulativeFlowColors : function() {
+        return [
+            this.grey4, this.orange, this.gold, this.yellow, this.lime, this.green_dk, this.blue_link, this.blue, this.purple, this.pink
+        ];
+    },
+
+    burnLineColor : function (){ return this.blue; },
+    burnColumnColor : function() { return this.lime; },
+    
+    getConsistentBarColors: function() { 
+    		return [
+		    		this.grey4, 
+		    		this.blue_light, 
+		    		this.blue, 
+		    		this.blue_dark, 
+		    		this.grey7, 
+		    		this.lime, 
+		    		this.green, 
+		    		this.green_dk, 
+		    		this.orange, 
+		    		this.purple,
+                    this.gold,
+                    this.yellow,
+                    this.blue_link,
+                    this.pink,
+                    this.red
+  	  	]; 
+    },
+    
+    getConsistentBarPatterns: function() { 
+        return [
+            'url(#circles)',
+            'url(#diagonal-down)',
+            'url(#diagonal-up)',
+            'url(#vertical)',
+            'url(#horizontal)',
+            'url(#squares)',
+            'url(#diamonds)',
+            'url(#highcharts-default-pattern-6)',
+            'url(#highcharts-default-pattern-7)'
+        ];
+    }
+});
+
 Ext.define('CA.agile.technicalservices.StrategyExecutionGroupSettingsField',{
     extend: 'Ext.form.field.Base',
     alias: 'widget.tsstrategyexecutiongroupsettingsfield',
@@ -1544,11 +1609,12 @@ Ext.define('CA.techservices.validation.BaseRule',{
             };
 
         Deft.Promise.all([
-            this._loadWsapiCount(strategyConfig),
-            this._loadWsapiCount(executionConfig)
+            this._loadWsapiRecords(strategyConfig),
+            this._loadWsapiRecords(executionConfig)
         ]).then({
             success: function(results){
-                deferred.resolve(Ext.Array.sum(results));
+                // deferred.resolve(Ext.Array.sum(results));
+                deferred.resolve(results);
             },
             failure: function(msg){
                 deferred.reject(msg);
@@ -1961,9 +2027,9 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
                 context: {project: pg.executionProjectRef, projectScopeDown: true}
             };
 
-        this._loadWsapiCount(executionConfig).then({
-            success: function(count){
-                deferred.resolve(count);
+        this._loadWsapiRecords(executionConfig).then({
+            success: function(records){
+                deferred.resolve(records);
             },
             failure: function(msg){
                 deferred.reject(msg);
@@ -2204,16 +2270,18 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
             this._loadWsapiRecords(executionConfig)
         ]).then({
             success: function(results){
+                var filtered_records = [];
                 var records = _.flatten(results),
                     count = 0;
                 Ext.Array.each(records, function(r){
                     var release = r.get('Release') && r.get('Release').Name || null,
                         featureRelease = r.get(featureName) && r.get(featureName).Release && r.get(featureName).Release.Name || null;
                     if (release != featureRelease){
+                        filtered_records.push(r);
                         count++;
                     }
                 });
-                deferred.resolve(count);
+                deferred.resolve(filtered_records);
             },
             failure: function(msg){
                 deferred.reject(msg);
@@ -2333,15 +2401,15 @@ Ext.define('CA.techservices.validation.StoryProject',{
             };
 
         var promises = [
-            this._loadWsapiCount(executionConfig),
-            this._loadWsapiCount(deliveryConfig)
+            this._loadWsapiRecords(executionConfig),
+            this._loadWsapiRecords(deliveryConfig)
         ];
 
         Deft.Promise.all(promises).then({
             success: function(results){
                 console.log('results', results);
-                deferred.resolve(Ext.Array.sum(results));
-
+                //deferred.resolve(Ext.Array.sum(results));
+                deferred.resolve(results);
             },
             failure: function(msg){
                 deferred.reject(msg);
@@ -2537,7 +2605,7 @@ Ext.define("data-hygiene", {
             //}
             Ext.Array.each(projects, function(p){
                 //ruleHash[cd.ruleName][cd.type][p] = cd[p] || 0;
-                ruleHash[cd.ruleName][p] = cd[p] || 0;
+                ruleHash[cd.ruleName][p] = _.flatten(cd[p]).length;
             });
         });
 
@@ -2563,6 +2631,7 @@ Ext.define("data-hygiene", {
         this.logger.log('chartData', series, projects);
         this.getChartBox().add({
             xtype: 'rallychart',
+            chartColors: CA.apps.charts.Colors.getConsistentBarColors(),
             chartConfig: {
                 chart: {
                     type: 'bar',
@@ -2582,7 +2651,8 @@ Ext.define("data-hygiene", {
                     {
                         title: {
                             text: 'Artifact Count'
-                        }
+                        },
+                         reversedStacks: false
                     }
                 ],
                 plotOptions: {
@@ -2667,6 +2737,7 @@ Ext.define("data-hygiene", {
 
     },
     _buildSubGrid: function(type, data){
+        var me = this;
         var fields = [];
 
         if (data && data.length > 0){
@@ -2689,7 +2760,11 @@ Ext.define("data-hygiene", {
                 columnCfgs.push({
                     dataIndex: f,
                     text: f,
-                    align: 'center'
+                    align: 'center',
+                    renderer: function(value){
+                        //return Ext.String.format('<a onclick="me.showDrillDown({0})">{1}</a>', _.flatten(value), _.flatten(value).length);
+                        return _.flatten(value).length;
+                    }
                 });
             }
         });
@@ -2701,8 +2776,74 @@ Ext.define("data-hygiene", {
             columnCfgs: columnCfgs,
             showPagingToolbar: false,
             showRowActionsColumn: false
+            ,
+            viewConfig: {
+                listeners: {
+                    cellclick: this.showDrillDown,
+                    scope: this
+                }
+            }
         });
     },
+
+    showDrillDown: function(view, cell, cellIndex, record) {
+        console.log('view, cell, cellIndex, record',view, cell, cellIndex, record);
+        var me = this;
+        var clickedDataIndex = view.panel.headerCt.getHeaderAtIndex(cellIndex).dataIndex;
+        var ruleValue = record.get(clickedDataIndex);
+
+        var store = Ext.create('Rally.data.custom.Store', {
+            data: _.flatten(ruleValue),
+            pageSize: 2000
+        });
+        
+        var title = record.data.ruleName + ' for ' + clickedDataIndex || ""
+        
+        Ext.create('Rally.ui.dialog.Dialog', {
+            id        : 'detailPopup',
+            title     : title,
+            width     : Ext.getBody().getWidth() - 150,
+            height    : Ext.getBody().getHeight() - 150,
+            closable  : true,
+            layout    : 'border',
+            items     : [
+            {
+                xtype                : 'rallygrid',
+                region               : 'center',
+                layout               : 'fit',
+                sortableColumns      : true,
+                showRowActionsColumn : false,
+                //showPagingToolbar    : false,
+                columnCfgs           : this.getDrillDownColumns(title),
+                store : store
+            }]
+        }).show();
+    },
+
+    getDrillDownColumns: function(title) {
+        return [
+            {
+                dataIndex: 'FormattedID',
+                text: "id",
+                renderer: function(m,v,r){
+                  return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate').apply(r.data);
+                }
+            },
+            {
+                dataIndex : 'Name',
+                text: "Name",
+                flex: 1
+            },
+            {
+                dataIndex : 'Owner',
+                text: "Owner",
+                renderer: function(value){
+                    return value._refObjectName
+                }
+            }
+        ];
+    },
+
     getUserFriendlyName: function(type){
         var name = '';
         if (/PortfolioItem/.test(type)){
@@ -2855,14 +2996,16 @@ Ext.define("data-hygiene", {
             portfolioItemTypes: this.portfolioItemTypes,
             scheduleStates: this.scheduleStates,
             projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsstory_fieldvalue',
-            targetField: this.getStoryCRField(),
-            label: 'Stories with "CR" field checked',
-            description: 'Stories with "CR" field checked',
-            targetFieldValue: true,
-            projectGroups: this.getProjectGroups()
-        },{
+        },
+        // {
+        //     xtype: 'tsstory_fieldvalue',
+        //     targetField: this.getStoryCRField(),
+        //     label: 'Stories with "CR" field checked',
+        //     description: 'Stories with "CR" field checked',
+        //     targetFieldValue: true,
+        //     projectGroups: this.getProjectGroups()
+        // },
+        {
         //    xtype: 'tsstory_fieldvalue',
         //    targetField: this.getStoryCRField(),
         //    label: 'User Stories with "CR" field <b>not</b> checked',
