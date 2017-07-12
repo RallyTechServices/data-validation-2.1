@@ -363,7 +363,7 @@ Ext.define("data-hygiene", {
                 layout               : 'fit',
                 sortableColumns      : true,
                 showRowActionsColumn : false,
-                //showPagingToolbar    : false,
+                showPagingToolbar    : false,
                 columnCfgs           : this.getDrillDownColumns(title),
                 store : store
             }]
@@ -382,14 +382,23 @@ Ext.define("data-hygiene", {
             {
                 dataIndex : 'Name',
                 text: "Name",
-                flex: 1
+                flex: 2
             },
             {
                 dataIndex : 'Owner',
                 text: "Owner",
                 renderer: function(value){
                     return value._refObjectName
-                }
+                },
+                flex: 1
+            },
+            {
+                dataIndex : 'Project',
+                text: "Project",
+                renderer: function(value){
+                    return value._refObjectName
+                },
+                flex: 1
             }
         ];
     },

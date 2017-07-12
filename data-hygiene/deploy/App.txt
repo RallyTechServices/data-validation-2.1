@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Jul 10 2017 21:26:58 GMT-0700 (PDT) -->
+    <!--  Build Date: Wed Jul 12 2017 14:37:29 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Jul 10 2017 21:26:58 GMT-0700 (PDT)";
+        var APP_BUILD_DATE = "Wed Jul 12 2017 14:37:29 GMT-0700 (PDT)";
         var BUILDER = "rajan08";
-        var CHECKSUM = 222570160141;
+        var CHECKSUM = 223237464448;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -2813,7 +2813,7 @@ Ext.define("data-hygiene", {
                 layout               : 'fit',
                 sortableColumns      : true,
                 showRowActionsColumn : false,
-                //showPagingToolbar    : false,
+                showPagingToolbar    : false,
                 columnCfgs           : this.getDrillDownColumns(title),
                 store : store
             }]
@@ -2832,14 +2832,23 @@ Ext.define("data-hygiene", {
             {
                 dataIndex : 'Name',
                 text: "Name",
-                flex: 1
+                flex: 2
             },
             {
                 dataIndex : 'Owner',
                 text: "Owner",
                 renderer: function(value){
                     return value._refObjectName
-                }
+                },
+                flex: 1
+            },
+            {
+                dataIndex : 'Project',
+                text: "Project",
+                renderer: function(value){
+                    return value._refObjectName
+                },
+                flex: 1
             }
         ];
     },
