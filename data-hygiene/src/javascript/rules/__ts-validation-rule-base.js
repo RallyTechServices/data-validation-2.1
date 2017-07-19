@@ -62,17 +62,18 @@ Ext.define('CA.techservices.validation.BaseRule',{
             strategyConfig = {
                 model: this.getModel(),
                 filters: filters,
-                context: {project: pg.strategyProjectRef, projectScopeDown: true}
-            },
-            executionConfig = {
-                model: this.getModel(),
-                filters: filters,
-                context: {project: pg.executionProjectRef, projectScopeDown: true}
+                context: {project: pg._ref, projectScopeDown: true}
             };
+            //,
+            // executionConfig = {
+            //     model: this.getModel(),
+            //     filters: filters,
+            //     context: {project: pg.executionProjectRef, projectScopeDown: true}
+            // };
 
         Deft.Promise.all([
             this._loadWsapiRecords(strategyConfig),
-            this._loadWsapiRecords(executionConfig)
+            // this._loadWsapiRecords(executionConfig)
         ]).then({
             success: function(results){
                 // deferred.resolve(Ext.Array.sum(results));
