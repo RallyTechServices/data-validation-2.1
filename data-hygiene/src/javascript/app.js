@@ -22,7 +22,8 @@ Ext.define("data-hygiene", {
             portfolioCRApprovalField: 'c_CRApprovedDate',
             userStoryCRField: 'c_CR',
             userStoryCRApprovalField: 'c_CRApprovedDate',
-            projectGroups: [],
+            showPrograms:[],
+            // projectGroups: [],
             query: null,
             lastUpdateDateAfter: null,
             creationDateAfter: null,
@@ -137,7 +138,7 @@ Ext.define("data-hygiene", {
         this.logger.log('addChart', chartData);
       
         var projects = _.map(this.getProjectGroups(), function(pg){
-            return pg.groupName;
+            return pg.Name;
         });
 
         var ruleHash = {},
@@ -260,6 +261,8 @@ Ext.define("data-hygiene", {
         var fileName = Ext.String.format("data-hygiene-{0}.csv",Rally.util.DateTime.format(new Date(), 'Y-m-d-h-i-s'));
         Rally.technicalservices.FileUtilities.saveCSVToFile(csv, fileName);
     },
+
+
     addExportButton: function(){
 
         var btn = this.getExportBox().add({
@@ -342,32 +345,103 @@ Ext.define("data-hygiene", {
         var clickedDataIndex = view.panel.headerCt.getHeaderAtIndex(cellIndex).dataIndex;
         var ruleValue = record.get(clickedDataIndex);
 
+        if(ruleValue.constructor != Array) return;
+
         var store = Ext.create('Rally.data.custom.Store', {
             data: _.flatten(ruleValue),
             pageSize: 2000
         });
         
         var title = record.data.ruleName + ' for ' + clickedDataIndex || ""
+
+
+        var export_popup = function(){
+            var grid = this.down('#popupGrid');
+            var me = this;
+
+            if ( !grid ) { return; }
+            
+            this.logger.log('_export',grid);
+
+            var filename = Ext.String.format('pi-timesheet-report.csv');
+
+            this.setLoading("Generating CSV");
+            Deft.Chain.sequence([
+                function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) } 
+            ]).then({
+                scope: this,
+                success: function(csv){
+                    if (csv && csv.length > 0){
+                        Rally.technicalservices.FileUtilities.saveCSVToFile(csv,filename);
+                    } else {
+                        Rally.ui.notify.Notifier.showWarning({message: 'No data to export'});
+                    }
+                    
+                }
+            }).always(function() { me.setLoading(false); });
+        };
         
         Ext.create('Rally.ui.dialog.Dialog', {
-            id        : 'detailPopup',
+            itemId    : 'detailPopup',
             title     : title,
             width     : Ext.getBody().getWidth() - 150,
             height    : Ext.getBody().getHeight() - 150,
             closable  : true,
             layout    : 'border',
             items     : [
-            {
-                xtype                : 'rallygrid',
-                region               : 'center',
-                layout               : 'fit',
-                sortableColumns      : true,
-                showRowActionsColumn : false,
-                showPagingToolbar    : false,
-                columnCfgs           : this.getDrillDownColumns(title),
-                store : store
-            }]
+                        {
+                            xtype                : 'rallygrid',
+                            itemId               : 'popupGrid',
+                            region               : 'center',
+                            layout               : 'fit',
+                            sortableColumns      : true,
+                            showRowActionsColumn : false,
+                            showPagingToolbar    : false,
+                            columnCfgs           : this.getDrillDownColumns(title),
+                            store : store,
+                            dockedItems: [{
+                                xtype: 'toolbar',
+                                dock: 'top',
+                                items: [
+                                    { 
+                                        xtype: 'button', 
+                                        text: 'Download CSV',
+                                        listeners: {
+                                            click: me._export_popup
+                                        }                                         
+                                    }
+                                ]
+                            }]
+                        }
+                        ]
         }).show();
+    },
+
+    _export_popup: function(){
+        var me = this;
+
+        var grid = this.up('window').down('#popupGrid');
+
+        if ( !grid ) { return; }
+        
+        //this.logger.log('_export',grid);
+
+        var filename = Ext.String.format(this.up('window').title +'.csv');
+
+        this.up('window').setLoading("Generating CSV");
+        Deft.Chain.sequence([
+            function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) } 
+        ]).then({
+            scope: this,
+            success: function(csv){
+                if (csv && csv.length > 0){
+                    Rally.technicalservices.FileUtilities.saveCSVToFile(csv,filename);
+                } else {
+                    Rally.ui.notify.Notifier.showWarning({message: 'No data to export'});
+                }
+                
+            }
+        }).always(function() { this.up('window').setLoading(false); });
     },
 
     getDrillDownColumns: function(title) {
@@ -375,9 +449,12 @@ Ext.define("data-hygiene", {
             {
                 dataIndex: 'FormattedID',
                 text: "id",
-                renderer: function(m,v,r){
-                  return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate').apply(r.data);
-                }
+                // renderer: function(m,v,r){
+                //   return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate').apply(r.data);
+                // }
+                renderer: function(value,meta,record){
+                    return Ext.String.format("<a href='{0}' target='_new'>{1}</a>",Rally.nav.Manager.getDetailUrl(record.get('_ref')),value);
+                }                          
             },
             {
                 dataIndex : 'Name',
@@ -436,13 +513,13 @@ Ext.define("data-hygiene", {
     },
     getProjectGroups: function(){
         var groups = [],
-            group_setting = this.getSetting('projectGroups');
+            group_setting = this.getSetting('showPrograms');
         if (!Ext.isArray(group_setting)){
             groups = Ext.JSON.decode(group_setting);
         } else {
             groups = group_setting;
         }
-        return groups;
+        return Ext.Object.getValues(groups);
     },
     getGridBox: function(){
         return this.down('#grid_box');
@@ -471,7 +548,8 @@ Ext.define("data-hygiene", {
             portfolioItemTypes: this.portfolioItemTypes,
             portfolioItemStates: this.portfolioItemStates,
             projectGroups: this.getProjectGroups()
-        },{
+        },
+        //{
         //    xtype: 'tsportfolio_fieldvalue',
         //    targetPortfolioLevel: 1,
         //    portfolioItemTypes: this.portfolioItemTypes,
@@ -480,16 +558,18 @@ Ext.define("data-hygiene", {
         //    description: '{0}s with "AOP Approved" field checked',
         //    targetFieldValue: true,
         //    projectGroups: this.getProjectGroups()
-        //},{
-            xtype: 'tsportfolio_fieldvalue',
-            targetPortfolioLevel: 1,
-            portfolioItemTypes: this.portfolioItemTypes,
-            targetField: this.getPortfolioAOPField(),
-            label: '{0}s not "AOP Approved"',
-            description: '{0}s not "AOP Approved"',
-            targetFieldValue: "No",
-            projectGroups: this.getProjectGroups()
-        },{
+        //},
+        // {
+        //     xtype: 'tsportfolio_fieldvalue',
+        //     targetPortfolioLevel: 1,
+        //     portfolioItemTypes: this.portfolioItemTypes,
+        //     targetField: this.getPortfolioAOPField(),
+        //     label: '{0}s not "AOP Approved"',
+        //     description: '{0}s not "AOP Approved"',
+        //     targetFieldValue: "No",
+        //     projectGroups: this.getProjectGroups()
+        // },
+        {
             xtype:'tsportfolio_orphan',
             targetPortfolioLevel: 0,
             portfolioItemTypes: this.portfolioItemTypes,
@@ -499,16 +579,18 @@ Ext.define("data-hygiene", {
             targetPortfolioLevel: 0,
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
-        },{
-            xtype: 'tsportfolio_fieldvalue',
-            targetPortfolioLevel: 0,
-            portfolioItemTypes: this.portfolioItemTypes,
-            targetField: this.getPortfolioCRField(),
-            label: '{0}s with "CR" field checked',
-            description: '{0}s with "CR" field checked',
-            targetFieldValue: true,
-            projectGroups: this.getProjectGroups()
-        //},{
+        },
+        // {
+        //     xtype: 'tsportfolio_fieldvalue',
+        //     targetPortfolioLevel: 0,
+        //     portfolioItemTypes: this.portfolioItemTypes,
+        //     targetField: this.getPortfolioCRField(),
+        //     label: '{0}s with "CR" field checked',
+        //     description: '{0}s with "CR" field checked',
+        //     targetFieldValue: true,
+        //     projectGroups: this.getProjectGroups()
+        //}
+        // ,{
         //    xtype: 'tsportfolio_fieldvalue',
         //    targetPortfolioLevel: 0,
         //    portfolioItemTypes: this.portfolioItemTypes,
@@ -517,7 +599,8 @@ Ext.define("data-hygiene", {
         //    description: '{0}s with "CR" field <b>not</b> checked',
         //    targetFieldValue: false,
         //    projectGroups: this.getProjectGroups()
-        },{
+        // },
+        {
             xtype: 'tsportfolio_staterelease',
             portfolioItemTypes: this.portfolioItemTypes,
             portfolioItemStates: this.portfolioItemStates
@@ -564,7 +647,7 @@ Ext.define("data-hygiene", {
         //     targetFieldValue: true,
         //     projectGroups: this.getProjectGroups()
         // },
-        {
+        //{
         //    xtype: 'tsstory_fieldvalue',
         //    targetField: this.getStoryCRField(),
         //    label: 'User Stories with "CR" field <b>not</b> checked',
@@ -575,10 +658,14 @@ Ext.define("data-hygiene", {
         //    xtype: 'tsstory_inprogressbeforeexecution',
         //    portfolioItemTypes: this.portfolioItemTypes,
         //    portfolioItemStates: this.portfolioItemStates
-        //},{
+        //},
+        {
             xtype: 'tsstory_inprogresscrcheckednoapproval',
             crField: this.getStoryCRField(),
             crApprovalField: this.getStoryCRApprovalField()
+        },{
+            xtype:'tsstory_project_track',
+            projectGroups: this.getProjectGroups()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
@@ -622,11 +709,19 @@ Ext.define("data-hygiene", {
             xtype: 'container',
             margin: '25 0 0 0',
             html: '<div class="rally-upper-bold">Programs</div>'
-        },{
-            name: 'projectGroups',
-            xtype:'tsstrategyexecutiongroupsettingsfield',
-            fieldLabel: ' '
-        },{
+        },
+        // {
+        //     name: 'projectGroups',
+        //     xtype:'tsstrategyexecutiongroupsettingsfield',
+        //     fieldLabel: ' '
+        // },
+        {
+            name: 'showPrograms',
+            xtype:'tsprojectsettingsfield',
+            fieldLabel: ' ',
+            readyEvent: 'ready'
+        },        
+        {
             xtype: 'textarea',
             fieldLabel: '<div class="rally-upper-bold">Filter by Query</div><em>Query fields must apply to all item types.  This filter will override the date filters above for all item types.</em>',
             labelAlign: 'top',

@@ -311,7 +311,7 @@ Ext.define('CA.techservices.validator.Validator',{
                     };
 
                 Ext.Array.each(projectGroups, function(pg){
-                    hash[pg.groupName] = results[idx++];
+                    hash[pg.Name] = results[idx++];
                 });
                 deferred.resolve(hash);
             },

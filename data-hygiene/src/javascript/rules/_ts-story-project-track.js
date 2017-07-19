@@ -1,6 +1,6 @@
-Ext.define('CA.techservices.validation.StoryProject',{
+Ext.define('CA.techservices.validation.StoryProjectTrack',{
     extend: 'CA.techservices.validation.BaseRule',
-    alias:  'widget.tsstory_project',
+    alias:  'widget.tsstory_project_track',
 
 
     config: {
@@ -10,8 +10,8 @@ Ext.define('CA.techservices.validation.StoryProject',{
          */
         portfolioItemTypes:[],
         model: 'HierarchicalRequirement',
-        label: 'Stories with incorrect "Project" field value --> should be "Team"',
-        description: 'Stories with incorrect "Project" field value --> should be "Team"'
+        label: 'Stories with Project field value "Track"',
+        description: 'Stories with Project field value "Track"'
     },
     getFetchFields: function() {
         return ['Name','Project'];
@@ -24,9 +24,10 @@ Ext.define('CA.techservices.validation.StoryProject',{
 
         var deliveryFilters = filters.and({
             property: "Project.Name",
-            operator: '!contains',
-            value: 'Team'
+            operator: 'contains',
+            value: 'Track'
         });
+        
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),

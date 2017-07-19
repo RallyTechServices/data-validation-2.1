@@ -11,8 +11,8 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
         portfolioProjects: [],
-        label: '{0}s with incorrect "Project" field value --> should be "Portfolio" or "Sub-Portfolio"',
-        description: '{0}s with incorrect "Project" field value --> should be "Portfolio" or "Sub-Portfolio"'
+        label: '{0}s with incorrect "Project" field value --> should be "Program" or "Sub-Program"',
+        description: '{0}s with incorrect "Project" field value --> should be "Program" or "Sub-Program"'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
@@ -31,11 +31,25 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
             filters = filters.and(baseFilters);
         }
 
+        var deliveryFilters = [{
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Program'
+        },
+        {
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Sub-Program'
+        }
+        ];
+
+        filters = filters.and(Rally.data.wsapi.Filter.and(deliveryFilters));
+
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
                 filters: filters,
-                context: {project: pg.executionProjectRef, projectScopeDown: true}
+                context: {project: pg._ref, projectScopeDown: true}
             };
 
         this._loadWsapiRecords(executionConfig).then({
