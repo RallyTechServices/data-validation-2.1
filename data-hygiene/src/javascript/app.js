@@ -228,8 +228,8 @@ Ext.define("data-hygiene", {
             headers = ['Artifact Type', 'Rule'];
 
         Ext.Array.each(this.getProjectGroups(), function(pg){
-            keys.push(pg.groupName);
-            headers.push(pg.groupName);
+            keys.push(pg.Name);
+            headers.push(pg.Name);
         });
 
         Ext.Array.each(grids, function(grid){
@@ -240,11 +240,14 @@ Ext.define("data-hygiene", {
                 Ext.Array.each(records, function(r){
                     var row = Ext.Array.map(keys, function(key){
                         var v = r.get(key) || 0;
+
+                        if(v.constructor === Array){
+                            return v.length
+                        }
+                        var v = r.get(key) || 0;
                         if (key == 'type'){
                             return this.getUserFriendlyName(v);
                         }
-
-
                         if (Ext.isString(v)){
                             return Ext.String.format("\"{0}\"", v.toString().replace(/"/g, "\"\""));
                         }
@@ -354,32 +357,6 @@ Ext.define("data-hygiene", {
         
         var title = record.data.ruleName + ' for ' + clickedDataIndex || ""
 
-
-        var export_popup = function(){
-            var grid = this.down('#popupGrid');
-            var me = this;
-
-            if ( !grid ) { return; }
-            
-            this.logger.log('_export',grid);
-
-            var filename = Ext.String.format('pi-timesheet-report.csv');
-
-            this.setLoading("Generating CSV");
-            Deft.Chain.sequence([
-                function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) } 
-            ]).then({
-                scope: this,
-                success: function(csv){
-                    if (csv && csv.length > 0){
-                        Rally.technicalservices.FileUtilities.saveCSVToFile(csv,filename);
-                    } else {
-                        Rally.ui.notify.Notifier.showWarning({message: 'No data to export'});
-                    }
-                    
-                }
-            }).always(function() { me.setLoading(false); });
-        };
         
         Ext.create('Rally.ui.dialog.Dialog', {
             itemId    : 'detailPopup',
@@ -428,7 +405,7 @@ Ext.define("data-hygiene", {
 
         var filename = Ext.String.format(this.up('window').title +'.csv');
 
-        this.up('window').setLoading("Generating CSV");
+        //this.up('window').setLoading("Generating CSV");
         Deft.Chain.sequence([
             function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) } 
         ]).then({
@@ -441,11 +418,11 @@ Ext.define("data-hygiene", {
                 }
                 
             }
-        }).always(function() { this.up('window').setLoading(false); });
+        }).always(function() { me.setLoading(false); });
     },
 
     getDrillDownColumns: function(title) {
-        return [
+        var columns =  [
             {
                 dataIndex: 'FormattedID',
                 text: "id",
@@ -454,7 +431,10 @@ Ext.define("data-hygiene", {
                 // }
                 renderer: function(value,meta,record){
                     return Ext.String.format("<a href='{0}' target='_new'>{1}</a>",Rally.nav.Manager.getDetailUrl(record.get('_ref')),value);
-                }                          
+                },
+                exportRenderer: function(value,meta,record) {
+                    return value;
+                }                         
             },
             {
                 dataIndex : 'Name',
@@ -478,6 +458,38 @@ Ext.define("data-hygiene", {
                 flex: 1
             }
         ];
+
+        if(title.indexOf('Stories with incorrect "Release" tag (does not match parent') > -1){
+            columns.push({
+                dataIndex : 'Release',
+                text: "Story Release",
+                renderer: function(value){
+                    return value && value.Name
+                },
+                flex: 1
+            });
+
+            columns.push({
+                dataIndex : 'Feature',
+                text: "Feature",
+                renderer: function(value){
+                    return value && value.Name
+                },
+                flex: 1
+            });
+
+            columns.push({
+                dataIndex : 'Feature',
+                text: "Feature Release",
+                renderer: function(value){
+                    return value && value.Release && value.Release.Name
+                },
+                flex: 1
+            });            
+        }
+
+
+        return columns;
     },
 
     getUserFriendlyName: function(type){
@@ -626,6 +638,9 @@ Ext.define("data-hygiene", {
             xtype:'tsstory_project',
             projectGroups: this.getProjectGroups()
         },{
+            xtype:'tsstory_project_track',
+            projectGroups: this.getProjectGroups()
+        },{
             xtype:'tsstory_planestimate',
             scheduleStates: this.scheduleStates,
             projectGroups: this.getProjectGroups()
@@ -663,9 +678,6 @@ Ext.define("data-hygiene", {
             xtype: 'tsstory_inprogresscrcheckednoapproval',
             crField: this.getStoryCRField(),
             crApprovalField: this.getStoryCRApprovalField()
-        },{
-            xtype:'tsstory_project_track',
-            projectGroups: this.getProjectGroups()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
