@@ -40,10 +40,11 @@ Ext.define('CA.techservices.validation.StoryMismatchedRelease',{
             //     context: {project: pg.executionProjectRef, projectScopeDown: true}
             // };
 
-        Deft.Promise.all([
-            this._loadWsapiRecords(strategyConfig),
-            //this._loadWsapiRecords(executionConfig)
-        ]).then({
+        // Deft.Promise.all([
+        //     this._loadWsapiRecords(strategyConfig),
+        //     //this._loadWsapiRecords(executionConfig)
+        // ]).then({
+        this._loadWsapiRecords(strategyConfig).then({
             success: function(results){
                 var filtered_records = [];
                 var records = _.flatten(results),

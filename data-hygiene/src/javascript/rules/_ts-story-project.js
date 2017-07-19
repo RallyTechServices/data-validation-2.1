@@ -40,12 +40,13 @@ Ext.define('CA.techservices.validation.StoryProject',{
             //     context: {project: pg.executionProjectRef, projectScopeDown: true}
             // };
 
-        var promises = [
-            this._loadWsapiRecords(executionConfig),
-            // this._loadWsapiRecords(deliveryConfig)
-        ];
+        // var promises = [
+        //     this._loadWsapiRecords(executionConfig),
+        //     // this._loadWsapiRecords(deliveryConfig)
+        // ];
 
-        Deft.Promise.all(promises).then({
+        // Deft.Promise.all(promises).then({
+        this._loadWsapiRecords(executionConfig).then({
             success: function(results){
                 console.log('results', results);
                 //deferred.resolve(Ext.Array.sum(results));

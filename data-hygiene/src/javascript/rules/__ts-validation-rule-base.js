@@ -71,10 +71,12 @@ Ext.define('CA.techservices.validation.BaseRule',{
             //     context: {project: pg.executionProjectRef, projectScopeDown: true}
             // };
 
-        Deft.Promise.all([
-            this._loadWsapiRecords(strategyConfig),
-            // this._loadWsapiRecords(executionConfig)
-        ]).then({
+        // Deft.Promise.all([
+        //     this._loadWsapiRecords(strategyConfig),
+        //     // this._loadWsapiRecords(executionConfig)
+        // ]).then({
+       
+        this._loadWsapiRecords(strategyConfig).then({            
             success: function(results){
                 // deferred.resolve(Ext.Array.sum(results));
                 deferred.resolve(results);
