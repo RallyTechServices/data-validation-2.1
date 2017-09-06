@@ -668,6 +668,10 @@ Ext.define("data-hygiene", {
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
         },{
+            xtype:'tsstory_children',
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
+        },{
             xtype:'tsstory_project',
             projectGroups: this.getProjectGroups()
         },{
@@ -711,10 +715,6 @@ Ext.define("data-hygiene", {
             xtype: 'tsstory_inprogresscrcheckednoapproval',
             crField: this.getStoryCRField(),
             crApprovalField: this.getStoryCRApprovalField()
-        },{
-            xtype:'tsstory_children',
-            portfolioItemTypes: this.portfolioItemTypes,
-            projectGroups: this.getProjectGroups()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{

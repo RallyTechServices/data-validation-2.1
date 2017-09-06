@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Tue Sep 05 2017 20:58:54 GMT-0700 (PDT) -->
+    <!--  Build Date: Tue Sep 05 2017 21:02:29 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Sep 05 2017 20:58:54 GMT-0700 (PDT)";
+        var APP_BUILD_DATE = "Tue Sep 05 2017 21:02:29 GMT-0700 (PDT)";
         var BUILDER = "rajan08";
-        var CHECKSUM = 493575038794;
+        var CHECKSUM = 493574543373;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -4593,6 +4593,10 @@ Ext.define("data-hygiene", {
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
         },{
+            xtype:'tsstory_children',
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
+        },{
             xtype:'tsstory_project',
             projectGroups: this.getProjectGroups()
         },{
@@ -4636,10 +4640,6 @@ Ext.define("data-hygiene", {
             xtype: 'tsstory_inprogresscrcheckednoapproval',
             crField: this.getStoryCRField(),
             crApprovalField: this.getStoryCRApprovalField()
-        },{
-            xtype:'tsstory_children',
-            portfolioItemTypes: this.portfolioItemTypes,
-            projectGroups: this.getProjectGroups()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
