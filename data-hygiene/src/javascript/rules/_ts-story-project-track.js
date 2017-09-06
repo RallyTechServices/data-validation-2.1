@@ -14,7 +14,7 @@ Ext.define('CA.techservices.validation.StoryProjectTrack',{
         description: 'Stories with Project field value "Track"'
     },
     getFetchFields: function() {
-        return ['Name','Project'];
+        return ['FormattedID','Name','Project','Owner','Feature','State'];
     },
     apply: function(pg, baseFilters){
         var filters = this.getFilters();
@@ -32,7 +32,8 @@ Ext.define('CA.techservices.validation.StoryProjectTrack',{
             executionConfig = {
                 model: this.getModel(),
                 filters: deliveryFilters,
-                context: {project: pg._ref, projectScopeDown: true}
+                context: {project: pg._ref, projectScopeDown: true},
+                fetch: this.getFetchFields()
             };
             // ,
             // deliveryConfig = {

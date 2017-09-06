@@ -11,8 +11,8 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
         portfolioProjects: [],
-        label: '{0}s with incorrect "Project" field value --> should be "Program" or "Sub-Program"',
-        description: '{0}s with incorrect "Project" field value --> should be "Program" or "Sub-Program"'
+        label: '{0}s with incorrect "Project" field value --> should be "Portfolio" or Program" or "Sub-Program"',
+        description: '{0}s with incorrect "Project" field value --> should be "Portfolio" or "Program" or "Sub-Program"'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
@@ -32,6 +32,10 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         }
 
         var deliveryFilters = [{
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Portfolio'
+        },{
             property: "Project.Name",
             operator: '!contains',
             value: 'Program'

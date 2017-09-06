@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jul 19 2017 16:33:33 GMT-0700 (PDT) -->
+    <!--  Build Date: Tue Sep 05 2017 20:58:54 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jul 19 2017 16:33:33 GMT-0700 (PDT)";
+        var APP_BUILD_DATE = "Tue Sep 05 2017 20:58:54 GMT-0700 (PDT)";
         var BUILDER = "rajan08";
-        var CHECKSUM = 479606886097;
+        var CHECKSUM = 493575038794;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -3354,8 +3354,8 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
         portfolioProjects: [],
-        label: '{0}s with incorrect "Project" field value --> should be "Program" or "Sub-Program"',
-        description: '{0}s with incorrect "Project" field value --> should be "Program" or "Sub-Program"'
+        label: '{0}s with incorrect "Project" field value --> should be "Portfolio" or Program" or "Sub-Program"',
+        description: '{0}s with incorrect "Project" field value --> should be "Portfolio" or "Program" or "Sub-Program"'
     },
     getModel:function(){
         return this.portfolioItemTypes[this.targetPortfolioLevel].TypePath;
@@ -3375,6 +3375,10 @@ Ext.define('CA.techservices.validation.PortfolioProject',{
         }
 
         var deliveryFilters = [{
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Portfolio'
+        },{
             property: "Project.Name",
             operator: '!contains',
             value: 'Program'
@@ -3468,6 +3472,32 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
         //    value: ""
         //}];
         //return Rally.data.wsapi.Filter.and(filters);
+    }
+});
+Ext.define('CA.techservices.validation.StoryChildren',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsstory_children',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+        model: 'HierarchicalRequirement',
+        portfolioItemTypes: null,
+
+        label: 'Child Stories (Stories nested under other Stories)'
+    },
+    getFilters: function() {
+        return Rally.data.wsapi.Filter.and([{
+            property:'Parent',
+            operator:'!=',
+            value:null
+        },{
+            property: 'PortfolioItem',
+            value: null
+        }]);
     }
 });
 Ext.define('CA.techservices.validation.StoryInProgressCRCheckedNoApproval',{
@@ -3744,7 +3774,7 @@ Ext.define('CA.techservices.validation.StoryProjectTrack',{
         description: 'Stories with Project field value "Track"'
     },
     getFetchFields: function() {
-        return ['Name','Project'];
+        return ['FormattedID','Name','Project','Owner','Feature','State'];
     },
     apply: function(pg, baseFilters){
         var filters = this.getFilters();
@@ -3762,7 +3792,8 @@ Ext.define('CA.techservices.validation.StoryProjectTrack',{
             executionConfig = {
                 model: this.getModel(),
                 filters: deliveryFilters,
-                context: {project: pg._ref, projectScopeDown: true}
+                context: {project: pg._ref, projectScopeDown: true},
+                fetch: this.getFetchFields()
             };
             // ,
             // deliveryConfig = {
@@ -3806,8 +3837,8 @@ Ext.define('CA.techservices.validation.StoryProject',{
          */
         portfolioItemTypes:[],
         model: 'HierarchicalRequirement',
-        label: 'Stories with incorrect "Project" field value --> should be "Team"',
-        description: 'Stories with incorrect "Project" field value --> should be "Team"'
+        label: 'Stories with incorrect "Project" field value --> should be "Team" or "Track"',
+        description: 'Stories with incorrect "Project" field value --> should be "Team" or "Track"'
     },
     getFetchFields: function() {
         return ['Name','Project'];
@@ -3818,11 +3849,18 @@ Ext.define('CA.techservices.validation.StoryProject',{
             filters = filters.and(baseFilters);
         }
 
-        var deliveryFilters = filters.and({
+        var deliveryFilters = [{
             property: "Project.Name",
             operator: '!contains',
             value: 'Team'
-        });
+        },{
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Track'
+        }];
+        
+        filters = filters.and(Rally.data.wsapi.Filter.and(deliveryFilters));
+
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
@@ -4376,6 +4414,39 @@ Ext.define("data-hygiene", {
         }
 
 
+        if(title.indexOf('Stories with Project field value "Track"') > -1){
+
+            columns.push({
+                dataIndex : 'Feature',
+                text: "Feature",
+                renderer: function(value){
+                    return value && value.Name
+                },
+                flex: 1
+            });
+
+            columns.push({
+                dataIndex : 'Feature',
+                text: "Feature State",
+                renderer: function(value){
+                    return value && value.State && value.State._refObjectName
+                },
+                flex: 1
+            });            
+        }
+
+        if(title.indexOf('Child Stories (Stories nested under other Stories)') > -1){
+
+            columns.push({
+                dataIndex : 'Parent',
+                text: "Parent",
+                renderer: function(value){
+                    return value && value.Name
+                },
+                flex: 1
+            });
+
+        }
         return columns;
     },
 
@@ -4565,6 +4636,10 @@ Ext.define("data-hygiene", {
             xtype: 'tsstory_inprogresscrcheckednoapproval',
             crField: this.getStoryCRField(),
             crApprovalField: this.getStoryCRApprovalField()
+        },{
+            xtype:'tsstory_children',
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
         }];
 
         var validator = Ext.create('CA.techservices.validator.Validator',{
