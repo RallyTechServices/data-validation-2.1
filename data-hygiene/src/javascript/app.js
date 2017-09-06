@@ -489,6 +489,39 @@ Ext.define("data-hygiene", {
         }
 
 
+        if(title.indexOf('Stories with Project field value "Track"') > -1){
+
+            columns.push({
+                dataIndex : 'Feature',
+                text: "Feature",
+                renderer: function(value){
+                    return value && value.Name
+                },
+                flex: 1
+            });
+
+            columns.push({
+                dataIndex : 'Feature',
+                text: "Feature State",
+                renderer: function(value){
+                    return value && value.State && value.State._refObjectName
+                },
+                flex: 1
+            });            
+        }
+
+        if(title.indexOf('Child Stories (Stories nested under other Stories)') > -1){
+
+            columns.push({
+                dataIndex : 'Parent',
+                text: "Parent",
+                renderer: function(value){
+                    return value && value.Name
+                },
+                flex: 1
+            });
+
+        }
         return columns;
     },
 
@@ -632,6 +665,10 @@ Ext.define("data-hygiene", {
             portfolioItemStates: this.portfolioItemStates
         },{
             xtype:'tsstory_orphan',
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
+        },{
+            xtype:'tsstory_children',
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
         },{

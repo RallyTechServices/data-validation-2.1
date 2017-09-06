@@ -10,8 +10,8 @@ Ext.define('CA.techservices.validation.StoryProject',{
          */
         portfolioItemTypes:[],
         model: 'HierarchicalRequirement',
-        label: 'Stories with incorrect "Project" field value --> should be "Team"',
-        description: 'Stories with incorrect "Project" field value --> should be "Team"'
+        label: 'Stories with incorrect "Project" field value --> should be "Team" or "Track"',
+        description: 'Stories with incorrect "Project" field value --> should be "Team" or "Track"'
     },
     getFetchFields: function() {
         return ['Name','Project'];
@@ -22,11 +22,18 @@ Ext.define('CA.techservices.validation.StoryProject',{
             filters = filters.and(baseFilters);
         }
 
-        var deliveryFilters = filters.and({
+        var deliveryFilters = [{
             property: "Project.Name",
             operator: '!contains',
             value: 'Team'
-        });
+        },{
+            property: "Project.Name",
+            operator: '!contains',
+            value: 'Track'
+        }];
+        
+        filters = filters.and(Rally.data.wsapi.Filter.and(deliveryFilters));
+
         var deferred = Ext.create('Deft.Deferred'),
             executionConfig = {
                 model: this.getModel(),
