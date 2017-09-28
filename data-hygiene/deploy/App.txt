@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Tue Sep 05 2017 21:02:29 GMT-0700 (PDT) -->
+    <!--  Build Date: Thu Sep 28 2017 14:58:00 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Sep 05 2017 21:02:29 GMT-0700 (PDT)";
-        var BUILDER = "rajan08";
-        var CHECKSUM = 493574543373;
+        var APP_BUILD_DATE = "Thu Sep 28 2017 14:58:00 GMT-0700 (PDT)";
+        var BUILDER = "bedch02";
+        var CHECKSUM = 494445369154;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -1741,7 +1741,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
 
     store: undefined,
     labelAlign: 'top',
-    
+
     onDestroy: function() {
         if (this._grid) {
             this._grid.destroy();
@@ -1749,7 +1749,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         }
         this.callParent(arguments);
     },
-    
+
     initComponent: function(){
 
         this.callParent();
@@ -1774,7 +1774,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         this.callParent(arguments);
         this.setLoading('Loading projects...');
     },
-        
+
     _buildProjectGrid: function(records, operation, success){
         this.setLoading(false);
         var container = Ext.create('Ext.container.Container',{
@@ -1783,9 +1783,9 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
             minHeight: 50,
             minWidth: 50
         });
-        
+
         var decodedValue = {};
-        
+
         if (this.initialConfig && this.initialConfig.value && !_.isEmpty(this.initialConfig.value)){
             if (!Ext.isObject(this.initialConfig.value)){
                 decodedValue = Ext.JSON.decode(this.initialConfig.value);
@@ -1793,24 +1793,28 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
                 decodedValue = this.initialConfig.value;
             }
         }
-       
+
         var data = [],
             empty_text = "No selections";
 
         console.log('initial config', this._value, this.initialConfig, decodedValue);
-            
+
         if (success && decodedValue !== {} ) {
-            Ext.Array.each(records, function(project){
-                var setting = decodedValue[project.get('_ref')];
-                if ( setting && setting !== {} ) {
-                    data.push({
-                        _ref: project.get('_ref'), 
-                        projectName: project.get('Name'),
-                        Name: project.get('Name'),
-                        ObjectID: project.get('ObjectID')
-                    });
-                }
+            Ext.Object.each(decodedValue, function (_ref, settings) {
+              Ext.Array.each(records, function(project){
+//                  var setting = decodedValue[project.get('_ref')];
+//                  if ( setting && setting !== {} ) {
+                  if ( _ref == project.get('_ref') ) {
+                      data.push({
+                          _ref: project.get('_ref'),
+                          projectName: project.get('Name'),
+                          Name: project.get('Name'),
+                          ObjectID: project.get('ObjectID')
+                      });
+                  }
+              });
             });
+
         } else {
             empty_text = "Error(s) fetching Project data: <br/>" + operation.error.errors.join('<br/>');
         }
@@ -1819,7 +1823,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
             fields: ['_ref', 'projectName','Name', 'ObjectID'],
             data: data
         });
-        
+
         var gridWidth = Math.min(this.inputEl.getWidth(true)-100, 500);
         this.inputEl.set
         this._grid = container.add(  {
@@ -1838,7 +1842,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         });
 
         var width = Math.min(this.inputEl.getWidth(true)-20, 600);
-        
+
         //Ext.create('Rally.ui.Button',{
         container.add({
             xtype: 'rallybutton',
@@ -1918,7 +1922,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         data[this.name] = Ext.JSON.encode(this._buildSettingValue());
         return data;
     },
-    
+
     _buildSettingValue: function() {
         var mappings = {};
         var store = this._grid.getStore();
@@ -4061,7 +4065,7 @@ Ext.define("data-hygiene", {
     },
     _addChart: function(chartData){
         this.logger.log('addChart', chartData);
-      
+
         var projects = _.map(this.getProjectGroups(), function(pg){
             return pg.Name;
         });
@@ -4174,7 +4178,7 @@ Ext.define("data-hygiene", {
                             return this.getUserFriendlyName(v);
                         }
                         if (Ext.isString(v)){
-                            return Ext.String.format("\"{0}\"", v.toString().replace(/"/g, "\"\""));
+//                            return Ext.String.format("\"{0}\"", v.toString().replace(/"/g, "\"\""));
                         }
                         return v;
 
@@ -4279,10 +4283,10 @@ Ext.define("data-hygiene", {
             data: _.flatten(ruleValue),
             pageSize: 2000
         });
-        
+
         var title = record.data.ruleName + ' for ' + clickedDataIndex || ""
 
-        
+
         Ext.create('Rally.ui.dialog.Dialog', {
             itemId    : 'detailPopup',
             title     : title,
@@ -4305,12 +4309,12 @@ Ext.define("data-hygiene", {
                                 xtype: 'toolbar',
                                 dock: 'top',
                                 items: [
-                                    { 
-                                        xtype: 'button', 
+                                    {
+                                        xtype: 'button',
                                         text: 'Download CSV',
                                         listeners: {
                                             click: me._export_popup
-                                        }                                         
+                                        }
                                     }
                                 ]
                             }]
@@ -4325,14 +4329,14 @@ Ext.define("data-hygiene", {
         var grid = this.up('window').down('#popupGrid');
 
         if ( !grid ) { return; }
-        
+
         //this.logger.log('_export',grid);
 
         var filename = Ext.String.format(this.up('window').title +'.csv');
 
         //this.up('window').setLoading("Generating CSV");
         Deft.Chain.sequence([
-            function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) } 
+            function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) }
         ]).then({
             scope: this,
             success: function(csv){
@@ -4341,7 +4345,7 @@ Ext.define("data-hygiene", {
                 } else {
                     Rally.ui.notify.Notifier.showWarning({message: 'No data to export'});
                 }
-                
+
             }
         }).always(function() { me.setLoading(false); });
     },
@@ -4359,7 +4363,7 @@ Ext.define("data-hygiene", {
                 },
                 exportRenderer: function(value,meta,record) {
                     return value;
-                }                         
+                }
             },
             {
                 dataIndex : 'Name',
@@ -4410,7 +4414,7 @@ Ext.define("data-hygiene", {
                     return value && value.Release && value.Release.Name
                 },
                 flex: 1
-            });            
+            });
         }
 
 
@@ -4432,7 +4436,7 @@ Ext.define("data-hygiene", {
                     return value && value.State && value.State._refObjectName
                 },
                 flex: 1
-            });            
+            });
         }
 
         if(title.indexOf('Child Stories (Stories nested under other Stories)') > -1){
@@ -4694,7 +4698,7 @@ Ext.define("data-hygiene", {
             xtype:'tsprojectsettingsfield',
             fieldLabel: ' ',
             readyEvent: 'ready'
-        },        
+        },
         {
             xtype: 'textarea',
             fieldLabel: '<div class="rally-upper-bold">Filter by Query</div><em>Query fields must apply to all item types.  This filter will override the date filters above for all item types.</em>',

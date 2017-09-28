@@ -136,7 +136,7 @@ Ext.define("data-hygiene", {
     },
     _addChart: function(chartData){
         this.logger.log('addChart', chartData);
-      
+
         var projects = _.map(this.getProjectGroups(), function(pg){
             return pg.Name;
         });
@@ -249,7 +249,7 @@ Ext.define("data-hygiene", {
                             return this.getUserFriendlyName(v);
                         }
                         if (Ext.isString(v)){
-                            return Ext.String.format("\"{0}\"", v.toString().replace(/"/g, "\"\""));
+//                            return Ext.String.format("\"{0}\"", v.toString().replace(/"/g, "\"\""));
                         }
                         return v;
 
@@ -354,10 +354,10 @@ Ext.define("data-hygiene", {
             data: _.flatten(ruleValue),
             pageSize: 2000
         });
-        
+
         var title = record.data.ruleName + ' for ' + clickedDataIndex || ""
 
-        
+
         Ext.create('Rally.ui.dialog.Dialog', {
             itemId    : 'detailPopup',
             title     : title,
@@ -380,12 +380,12 @@ Ext.define("data-hygiene", {
                                 xtype: 'toolbar',
                                 dock: 'top',
                                 items: [
-                                    { 
-                                        xtype: 'button', 
+                                    {
+                                        xtype: 'button',
                                         text: 'Download CSV',
                                         listeners: {
                                             click: me._export_popup
-                                        }                                         
+                                        }
                                     }
                                 ]
                             }]
@@ -400,14 +400,14 @@ Ext.define("data-hygiene", {
         var grid = this.up('window').down('#popupGrid');
 
         if ( !grid ) { return; }
-        
+
         //this.logger.log('_export',grid);
 
         var filename = Ext.String.format(this.up('window').title +'.csv');
 
         //this.up('window').setLoading("Generating CSV");
         Deft.Chain.sequence([
-            function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) } 
+            function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) }
         ]).then({
             scope: this,
             success: function(csv){
@@ -416,7 +416,7 @@ Ext.define("data-hygiene", {
                 } else {
                     Rally.ui.notify.Notifier.showWarning({message: 'No data to export'});
                 }
-                
+
             }
         }).always(function() { me.setLoading(false); });
     },
@@ -434,7 +434,7 @@ Ext.define("data-hygiene", {
                 },
                 exportRenderer: function(value,meta,record) {
                     return value;
-                }                         
+                }
             },
             {
                 dataIndex : 'Name',
@@ -485,7 +485,7 @@ Ext.define("data-hygiene", {
                     return value && value.Release && value.Release.Name
                 },
                 flex: 1
-            });            
+            });
         }
 
 
@@ -507,7 +507,7 @@ Ext.define("data-hygiene", {
                     return value && value.State && value.State._refObjectName
                 },
                 flex: 1
-            });            
+            });
         }
 
         if(title.indexOf('Child Stories (Stories nested under other Stories)') > -1){
@@ -769,7 +769,7 @@ Ext.define("data-hygiene", {
             xtype:'tsprojectsettingsfield',
             fieldLabel: ' ',
             readyEvent: 'ready'
-        },        
+        },
         {
             xtype: 'textarea',
             fieldLabel: '<div class="rally-upper-bold">Filter by Query</div><em>Query fields must apply to all item types.  This filter will override the date filters above for all item types.</em>',
