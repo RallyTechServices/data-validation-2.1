@@ -7,7 +7,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
 
     store: undefined,
     labelAlign: 'top',
-    
+
     onDestroy: function() {
         if (this._grid) {
             this._grid.destroy();
@@ -15,7 +15,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         }
         this.callParent(arguments);
     },
-    
+
     initComponent: function(){
 
         this.callParent();
@@ -40,7 +40,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         this.callParent(arguments);
         this.setLoading('Loading projects...');
     },
-        
+
     _buildProjectGrid: function(records, operation, success){
         this.setLoading(false);
         var container = Ext.create('Ext.container.Container',{
@@ -49,9 +49,9 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
             minHeight: 50,
             minWidth: 50
         });
-        
+
         var decodedValue = {};
-        
+
         if (this.initialConfig && this.initialConfig.value && !_.isEmpty(this.initialConfig.value)){
             if (!Ext.isObject(this.initialConfig.value)){
                 decodedValue = Ext.JSON.decode(this.initialConfig.value);
@@ -59,24 +59,28 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
                 decodedValue = this.initialConfig.value;
             }
         }
-       
+
         var data = [],
             empty_text = "No selections";
 
         console.log('initial config', this._value, this.initialConfig, decodedValue);
-            
+
         if (success && decodedValue !== {} ) {
-            Ext.Array.each(records, function(project){
-                var setting = decodedValue[project.get('_ref')];
-                if ( setting && setting !== {} ) {
-                    data.push({
-                        _ref: project.get('_ref'), 
-                        projectName: project.get('Name'),
-                        Name: project.get('Name'),
-                        ObjectID: project.get('ObjectID')
-                    });
-                }
+            Ext.Object.each(decodedValue, function (_ref, settings) {
+              Ext.Array.each(records, function(project){
+//                  var setting = decodedValue[project.get('_ref')];
+//                  if ( setting && setting !== {} ) {
+                  if ( _ref == project.get('_ref') ) {
+                      data.push({
+                          _ref: project.get('_ref'),
+                          projectName: project.get('Name'),
+                          Name: project.get('Name'),
+                          ObjectID: project.get('ObjectID')
+                      });
+                  }
+              });
             });
+
         } else {
             empty_text = "Error(s) fetching Project data: <br/>" + operation.error.errors.join('<br/>');
         }
@@ -85,7 +89,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
             fields: ['_ref', 'projectName','Name', 'ObjectID'],
             data: data
         });
-        
+
         var gridWidth = Math.min(this.inputEl.getWidth(true)-100, 500);
         this.inputEl.set
         this._grid = container.add(  {
@@ -104,7 +108,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         });
 
         var width = Math.min(this.inputEl.getWidth(true)-20, 600);
-        
+
         //Ext.create('Rally.ui.Button',{
         container.add({
             xtype: 'rallybutton',
@@ -184,7 +188,7 @@ Ext.define('CA.technicalservices.ProjectTreePickerSettingsField',{
         data[this.name] = Ext.JSON.encode(this._buildSettingValue());
         return data;
     },
-    
+
     _buildSettingValue: function() {
         var mappings = {};
         var store = this._grid.getStore();
