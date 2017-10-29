@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Sep 28 2017 14:58:00 GMT-0700 (PDT) -->
+    <!--  Build Date: Sun Oct 29 2017 16:38:31 GMT+0200 (EET) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Sep 28 2017 14:58:00 GMT-0700 (PDT)";
+        var APP_BUILD_DATE = "Sun Oct 29 2017 16:38:31 GMT+0200 (EET)";
         var BUILDER = "bedch02";
-        var CHECKSUM = 494445369154;
+        var CHECKSUM = 494375173502;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -3954,7 +3954,7 @@ Ext.define("data-hygiene", {
             showPrograms:[],
             // projectGroups: [],
             query: null,
-            lastUpdateDateAfter: null,
+            creationDateBefore: null,
             creationDateAfter: null,
             orFilter: false
         }
@@ -4028,12 +4028,12 @@ Ext.define("data-hygiene", {
         }
 
         var filters = [];
-        if (this.getSetting('lastUpdateDateAfter')){
-            this.logger.log('getFilters lastUpdateDateAfter provided: ', this.getSetting('lastUpdateDateAfter'));
+        if (this.getSetting('creationDateBefore')){
+            this.logger.log('getFilters creationDateBefore provided: ', this.getSetting('creationDateBefore'));
             filters.push({
-                property: 'LastUpdateDate',
-                operator: '>=',
-                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('lastUpdateDateAfter')))
+                property: 'CreationDate',
+                operator: '<=',
+                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('creationDateBefore')))
             });
         }
 
@@ -4681,8 +4681,8 @@ Ext.define("data-hygiene", {
             xtype: 'rallydatefield',
             labelAlign: 'right',
             labelWidth: labelWidth,
-            fieldLabel: 'Items updated after',
-            name: 'lastUpdateDateAfter'
+            fieldLabel: 'Items created before',
+            name: 'creationDateBefore'
         }, {
             xtype: 'container',
             margin: '25 0 0 0',
