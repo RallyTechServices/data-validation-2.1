@@ -25,7 +25,7 @@ Ext.define("data-hygiene", {
             showPrograms:[],
             // projectGroups: [],
             query: null,
-            lastUpdateDateAfter: null,
+            creationDateBefore: null,
             creationDateAfter: null,
             orFilter: false
         }
@@ -99,12 +99,12 @@ Ext.define("data-hygiene", {
         }
 
         var filters = [];
-        if (this.getSetting('lastUpdateDateAfter')){
-            this.logger.log('getFilters lastUpdateDateAfter provided: ', this.getSetting('lastUpdateDateAfter'));
+        if (this.getSetting('creationDateBefore')){
+            this.logger.log('getFilters creationDateBefore provided: ', this.getSetting('creationDateBefore'));
             filters.push({
-                property: 'LastUpdateDate',
-                operator: '>=',
-                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('lastUpdateDateAfter')))
+                property: 'CreationDate',
+                operator: '<=',
+                value: Rally.util.DateTime.toIsoString(new Date(this.getSetting('creationDateBefore')))
             });
         }
 
@@ -752,8 +752,8 @@ Ext.define("data-hygiene", {
             xtype: 'rallydatefield',
             labelAlign: 'right',
             labelWidth: labelWidth,
-            fieldLabel: 'Items updated after',
-            name: 'lastUpdateDateAfter'
+            fieldLabel: 'Items created before',
+            name: 'creationDateBefore'
         }, {
             xtype: 'container',
             margin: '25 0 0 0',
