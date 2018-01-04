@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Sun Oct 29 2017 16:38:31 GMT+0200 (EET) -->
+    <!--  Build Date: Thu Jan 04 2018 09:45:36 GMT-0800 (PST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Sun Oct 29 2017 16:38:31 GMT+0200 (EET)";
+        var APP_BUILD_DATE = "Thu Jan 04 2018 09:45:36 GMT-0800 (PST)";
         var BUILDER = "bedch02";
-        var CHECKSUM = 494375173502;
+        var CHECKSUM = 498806914043;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -3845,7 +3845,7 @@ Ext.define('CA.techservices.validation.StoryProject',{
         description: 'Stories with incorrect "Project" field value --> should be "Team" or "Track"'
     },
     getFetchFields: function() {
-        return ['Name','Project'];
+        return ['Name','Project','Feature'];
     },
     apply: function(pg, baseFilters){
         var filters = this.getFilters();
@@ -3861,8 +3861,31 @@ Ext.define('CA.techservices.validation.StoryProject',{
             property: "Project.Name",
             operator: '!contains',
             value: 'Track'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Ideation'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Front Door'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Grooming'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Canceled'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: ''
         }];
-        
+
+// (((((State != "Ideation") AND (State != "Front Door")) AND (State != "Grooming")) AND (State != "Canceled")) AND (State != ""))
+// ((((State = "Planning") OR (State = "Execution")) OR (State = "Certification")) OR (State = "Production"))
+
         filters = filters.and(Rally.data.wsapi.Filter.and(deliveryFilters));
 
         var deferred = Ext.create('Deft.Deferred'),
