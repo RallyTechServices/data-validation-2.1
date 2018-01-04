@@ -14,7 +14,7 @@ Ext.define('CA.techservices.validation.StoryProject',{
         description: 'Stories with incorrect "Project" field value --> should be "Team" or "Track"'
     },
     getFetchFields: function() {
-        return ['Name','Project'];
+        return ['Name','Project','Feature'];
     },
     apply: function(pg, baseFilters){
         var filters = this.getFilters();
@@ -30,8 +30,31 @@ Ext.define('CA.techservices.validation.StoryProject',{
             property: "Project.Name",
             operator: '!contains',
             value: 'Track'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Ideation'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Front Door'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Grooming'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: 'Canceled'
+        },{
+            property: "Feature.State",
+            operator: '!=',
+            value: ''
         }];
-        
+
+// (((((State != "Ideation") AND (State != "Front Door")) AND (State != "Grooming")) AND (State != "Canceled")) AND (State != ""))
+// ((((State = "Planning") OR (State = "Execution")) OR (State = "Certification")) OR (State = "Production"))
+
         filters = filters.and(Rally.data.wsapi.Filter.and(deliveryFilters));
 
         var deferred = Ext.create('Deft.Deferred'),
