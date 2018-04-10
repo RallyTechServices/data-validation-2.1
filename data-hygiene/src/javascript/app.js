@@ -11,6 +11,7 @@ Ext.define("data-hygiene", {
     items: [
         {xtype:'container',itemId:'selector_box', flex: 1, float: 'right', tpl: '<div class="no-data-container"><div class="secondary-message">{message}</div></div>'},
         {xtype:'container',itemId:'chart_box', flex: 1},
+//        {xtype:'container',itemId:'grid_box'}
         {xtype:'container',itemId:'grid_box', flex: 1}
     ],
 
@@ -308,7 +309,8 @@ Ext.define("data-hygiene", {
         var columnCfgs = [{
             dataIndex: 'ruleName',
             text: Ext.String.format('{0} level data hygiene', this.getUserFriendlyName(type)),
-            flex: 1
+            width: 200
+//            flex: 1
         }];
 
         Ext.Array.each(fields, function(f){
@@ -329,10 +331,12 @@ Ext.define("data-hygiene", {
             xtype: 'rallygrid',
             store: store,
             margin: 20,
+//            maxWidth: 500,
+            autoScroll: true,
+//            overflowX: 'scroll',
             columnCfgs: columnCfgs,
             showPagingToolbar: false,
-            showRowActionsColumn: false
-            ,
+            showRowActionsColumn: false,
             viewConfig: {
                 listeners: {
                     cellclick: this.showDrillDown,
@@ -664,12 +668,19 @@ Ext.define("data-hygiene", {
             portfolioItemTypes: this.portfolioItemTypes,
             portfolioItemStates: this.portfolioItemStates
         },{
+            xtype: 'tsstory_parent-canceled',
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
+        },{
             xtype:'tsstory_orphan',
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_children',
             portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
+        },{
+            xtype: 'tsstory_parents',
             projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_project',

@@ -12,6 +12,7 @@ Ext.define('CA.techservices.validation.PortfolioStateNoStories',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         triggerState: "Planning",
+        canceledState: "Canceled",
 
         label: '{0} in "{1}" State or beyond with no child stories',
         description: '{0} in "{1}" State or beyond with no child stories'
@@ -27,6 +28,9 @@ Ext.define('CA.techservices.validation.PortfolioStateNoStories',{
             piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
             states = this.portfolioItemStates[piName];
         Ext.Array.each(states, function(state){
+            if (state === this.canceledState){
+                return false;
+            }
             if (state === this.triggerState || filters.length > 0){
                 filters.push({
                     property: 'State.Name',

@@ -12,6 +12,7 @@ Ext.define('CA.techservices.validation.PortfolioNotExecutedInProgress',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
+        canceledState: "Canceled",
 
         label: '{0}s not yet in "{1}" State with stories "In-Progress" or beyond',
         description: '{0}s not yet in "{1}" State with stories "In-Progress" or beyond'
@@ -31,7 +32,7 @@ Ext.define('CA.techservices.validation.PortfolioNotExecutedInProgress',{
             states = this.portfolioItemStates[piName];
 
         Ext.Array.each(states, function(state){
-            if (state === this.executionState){
+            if (state === this.executionState || state === this.canceledState){
                 return false;
             }
             filters.push({

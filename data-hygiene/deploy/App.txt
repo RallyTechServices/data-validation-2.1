@@ -3,12 +3,12 @@
 <head>
     <title>Data Hygiene App</title>
     <!--  (c) 2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Jan 04 2018 11:22:25 GMT-0800 (PST) -->
+    <!--  Build Date: Tue Apr 10 2018 14:36:02 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Jan 04 2018 11:22:25 GMT-0800 (PST)";
+        var APP_BUILD_DATE = "Tue Apr 10 2018 14:36:02 GMT-0700 (PDT)";
         var BUILDER = "bedch02";
-        var CHECKSUM = 498806909191;
+        var CHECKSUM = 517190044635;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -3093,6 +3093,7 @@ Ext.define('CA.techservices.validation.PortfolioCRCheckedNoApproval',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
+        canceledState: "Canceled",
 
         label: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date',
         description: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date'
@@ -3108,6 +3109,9 @@ Ext.define('CA.techservices.validation.PortfolioCRCheckedNoApproval',{
             piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
             states = this.portfolioItemStates[piName];
         Ext.Array.each(states, function(state){
+            if (state === this.canceledState){
+                return false;
+            }
             if (state === this.executionState || filters.length > 0){
                 filters.push({
                     property: 'State.Name',
@@ -3159,6 +3163,7 @@ Ext.define('CA.techservices.validation.PortfolioNotExecutedInProgress',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
+        canceledState: "Canceled",
 
         label: '{0}s not yet in "{1}" State with stories "In-Progress" or beyond',
         description: '{0}s not yet in "{1}" State with stories "In-Progress" or beyond'
@@ -3178,7 +3183,7 @@ Ext.define('CA.techservices.validation.PortfolioNotExecutedInProgress',{
             states = this.portfolioItemStates[piName];
 
         Ext.Array.each(states, function(state){
-            if (state === this.executionState){
+            if (state === this.executionState || state === this.canceledState){
                 return false;
             }
             filters.push({
@@ -3273,6 +3278,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
          */
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
+        canceledState: "Canceled",
 
         label: 'Orphan {0}s (no parent {1})'
     },
@@ -3288,7 +3294,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
         return msg;
     },
     getFilters: function(){
-        return Rally.data.wsapi.Filter.fromQueryString("(Parent = \"\")");
+        return Rally.data.wsapi.Filter.fromQueryString("((State.Name != \"Canceled\") AND (Parent = \"\"))");
     }
 });
 Ext.define('CA.techservices.validation.PortfolioStateNoStories',{
@@ -3305,6 +3311,7 @@ Ext.define('CA.techservices.validation.PortfolioStateNoStories',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         triggerState: "Planning",
+        canceledState: "Canceled",
 
         label: '{0} in "{1}" State or beyond with no child stories',
         description: '{0} in "{1}" State or beyond with no child stories'
@@ -3320,6 +3327,9 @@ Ext.define('CA.techservices.validation.PortfolioStateNoStories',{
             piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
             states = this.portfolioItemStates[piName];
         Ext.Array.each(states, function(state){
+            if (state === this.canceledState){
+                return false;
+            }
             if (state === this.triggerState || filters.length > 0){
                 filters.push({
                     property: 'State.Name',
@@ -3428,6 +3438,7 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
+        canceledState: "Canceled",
 
         label: '{0} in "{1}" State or beyond missing Release',
         description: '{0} in "{1}" State or beyond missing Release'
@@ -3443,6 +3454,9 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
             piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
             states = this.portfolioItemStates[piName];
         Ext.Array.each(states, function(state){
+            if (state === this.canceledState){
+                return false;
+            }
             if (state === this.executionState || filters.length > 0){
                 filters.push({
                     property: 'State.Name',
@@ -3714,10 +3728,11 @@ Ext.define('CA.techservices.validation.StoryMissingRelease',{
          * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
          * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
          */
+        canceledState: "Canceled",
         scheduleStates: null,
         model: 'HierarchicalRequirement',
-        label: 'Stories "in progress" or beyond, with missing "Release" tag',
-        description: 'Stories "in progress" or beyond, with missing "Release" tag'
+        label: 'Stories "in progress" or beyond with missing "Release" tag',
+        description: 'Stories "in progress" or beyond with missing "Release" tag'
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
@@ -3727,6 +3742,10 @@ Ext.define('CA.techservices.validation.StoryMissingRelease',{
         },{
             property:'Release',
             value: ""
+        },{
+            property:'Feature.State',
+            operator:'!=',
+            value: "Canceled"
         }]);
     }
 });
@@ -3759,6 +3778,59 @@ Ext.define('CA.techservices.validation.StoryOrphan',{
         },{
             property: 'PortfolioItem',
             value: ""
+        }]);
+    }
+});
+Ext.define('CA.techservices.validation.CanceledParent',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsstory_parent-canceled',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+//        canceledState: "Canceled",
+        model: 'HierarchicalRequirement',
+        portfolioItemTypes: null,
+        label: 'Stories parented to a Canceled {0}'
+    },
+    getLabel: function(){
+        var msg = Ext.String.format(
+            this.label,
+            this.portfolioItemTypes[0].Name
+        );
+        return msg;
+    },
+    getFilters: function() {
+        return Rally.data.wsapi.Filter.and([{
+            property:'Feature.State',
+            operator: "=",
+            value: "Canceled"
+        }]);
+    }
+});
+Ext.define('CA.techservices.validation.StoryParents',{
+    extend: 'CA.techservices.validation.BaseRule',
+    alias:  'widget.tsstory_parents',
+
+
+    config: {
+        /*
+         * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
+         * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
+         */
+        model: 'HierarchicalRequirement',
+        portfolioItemTypes: null,
+
+        label: 'Parent Stories (Stories with Child Stories)'
+    },
+    getFilters: function() {
+        return Rally.data.wsapi.Filter.and([{
+            property:'Children.ObjectID',
+            operator:'!=',
+            value:null
         }]);
     }
 });
@@ -3861,6 +3933,7 @@ Ext.define('CA.techservices.validation.StoryProject',{
             property: "Project.Name",
             operator: '!contains',
             value: 'Track'
+/*
         },{
             property: "Feature.State",
             operator: '!=',
@@ -3881,6 +3954,7 @@ Ext.define('CA.techservices.validation.StoryProject',{
             property: "Feature.State",
             operator: '!=',
             value: ''
+*/
         }];
 
 // (((((State != "Ideation") AND (State != "Front Door")) AND (State != "Grooming")) AND (State != "Canceled")) AND (State != ""))
@@ -3936,8 +4010,8 @@ Ext.define('CA.techservices.validation.StoryPlanEstimate',{
          */
         scheduleStates: null,
         model: 'HierarchicalRequirement',
-        label: 'Stories "in progress" or beyond, without estimates',
-        description: 'Stories "in progress" or beyond, without estimates'
+        label: 'Stories "in progress" or beyond without estimates',
+        description: 'Stories "in progress" or beyond without estimates'
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
@@ -3963,6 +4037,7 @@ Ext.define("data-hygiene", {
     items: [
         {xtype:'container',itemId:'selector_box', flex: 1, float: 'right', tpl: '<div class="no-data-container"><div class="secondary-message">{message}</div></div>'},
         {xtype:'container',itemId:'chart_box', flex: 1},
+//        {xtype:'container',itemId:'grid_box'}
         {xtype:'container',itemId:'grid_box', flex: 1}
     ],
 
@@ -4260,7 +4335,8 @@ Ext.define("data-hygiene", {
         var columnCfgs = [{
             dataIndex: 'ruleName',
             text: Ext.String.format('{0} level data hygiene', this.getUserFriendlyName(type)),
-            flex: 1
+            width: 200
+//            flex: 1
         }];
 
         Ext.Array.each(fields, function(f){
@@ -4281,10 +4357,12 @@ Ext.define("data-hygiene", {
             xtype: 'rallygrid',
             store: store,
             margin: 20,
+//            maxWidth: 500,
+            autoScroll: true,
+//            overflowX: 'scroll',
             columnCfgs: columnCfgs,
             showPagingToolbar: false,
-            showRowActionsColumn: false
-            ,
+            showRowActionsColumn: false,
             viewConfig: {
                 listeners: {
                     cellclick: this.showDrillDown,
@@ -4616,12 +4694,19 @@ Ext.define("data-hygiene", {
             portfolioItemTypes: this.portfolioItemTypes,
             portfolioItemStates: this.portfolioItemStates
         },{
+            xtype: 'tsstory_parent-canceled',
+            portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
+        },{
             xtype:'tsstory_orphan',
             portfolioItemTypes: this.portfolioItemTypes,
             projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_children',
             portfolioItemTypes: this.portfolioItemTypes,
+            projectGroups: this.getProjectGroups()
+        },{
+            xtype: 'tsstory_parents',
             projectGroups: this.getProjectGroups()
         },{
             xtype:'tsstory_project',
