@@ -12,6 +12,7 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
+        canceledState: "Canceled",
 
         label: '{0} in "{1}" State or beyond missing Release',
         description: '{0} in "{1}" State or beyond missing Release'
@@ -27,6 +28,9 @@ Ext.define('CA.techservices.validation.PortfolioStateRule',{
             piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
             states = this.portfolioItemStates[piName];
         Ext.Array.each(states, function(state){
+            if (state === this.canceledState){
+                return false;
+            }
             if (state === this.executionState || filters.length > 0){
                 filters.push({
                     property: 'State.Name',

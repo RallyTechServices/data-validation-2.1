@@ -1,6 +1,6 @@
-Ext.define('CA.techservices.validation.StoryPlanEstimate',{
+Ext.define('CA.techservices.validation.StoryParents',{
     extend: 'CA.techservices.validation.BaseRule',
-    alias:  'widget.tsstory_planestimate',
+    alias:  'widget.tsstory_parents',
 
 
     config: {
@@ -8,19 +8,16 @@ Ext.define('CA.techservices.validation.StoryPlanEstimate',{
          * [{Rally.wsapi.data.Model}] portfolioItemTypes the list of PIs available
          * we're going to use the first level ones (different workspaces name their portfolio item levels differently)
          */
-        scheduleStates: null,
         model: 'HierarchicalRequirement',
-        label: 'Stories "in progress" or beyond without estimates',
-        description: 'Stories "in progress" or beyond without estimates'
+        portfolioItemTypes: null,
+
+        label: 'Parent Stories (Stories with Child Stories)'
     },
     getFilters: function() {
         return Rally.data.wsapi.Filter.and([{
-            property:'ScheduleState',
-            operator:'>',
-            value: "Defined"
-        },{
-            property:'PlanEstimate',
-            value: ""
+            property:'Children.ObjectID',
+            operator:'!=',
+            value:null
         }]);
     }
 });

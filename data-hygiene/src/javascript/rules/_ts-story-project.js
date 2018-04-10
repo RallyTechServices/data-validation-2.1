@@ -30,6 +30,7 @@ Ext.define('CA.techservices.validation.StoryProject',{
             property: "Project.Name",
             operator: '!contains',
             value: 'Track'
+/*
         },{
             property: "Feature.State",
             operator: '!=',
@@ -50,6 +51,7 @@ Ext.define('CA.techservices.validation.StoryProject',{
             property: "Feature.State",
             operator: '!=',
             value: ''
+*/
         }];
 
 // (((((State != "Ideation") AND (State != "Front Door")) AND (State != "Grooming")) AND (State != "Canceled")) AND (State != ""))

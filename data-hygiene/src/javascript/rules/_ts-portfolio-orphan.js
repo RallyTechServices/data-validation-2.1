@@ -10,6 +10,7 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
          */
         portfolioItemTypes:[],
         targetPortfolioLevel: 0,
+        canceledState: "Canceled",
 
         label: 'Orphan {0}s (no parent {1})'
     },
@@ -25,6 +26,6 @@ Ext.define('CA.techservices.validation.PortfolioOrphan',{
         return msg;
     },
     getFilters: function(){
-        return Rally.data.wsapi.Filter.fromQueryString("(Parent = \"\")");
+        return Rally.data.wsapi.Filter.fromQueryString("((State.Name != \"Canceled\") AND (Parent = \"\"))");
     }
 });

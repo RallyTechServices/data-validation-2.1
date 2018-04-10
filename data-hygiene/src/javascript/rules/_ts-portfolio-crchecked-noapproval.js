@@ -14,6 +14,7 @@ Ext.define('CA.techservices.validation.PortfolioCRCheckedNoApproval',{
         portfolioItemStates: [],
         targetPortfolioLevel: 0,
         executionState: "Execution",
+        canceledState: "Canceled",
 
         label: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date',
         description: '{0} in "{1}" State or beyond with CR Checked and no CR Approved Date'
@@ -29,6 +30,9 @@ Ext.define('CA.techservices.validation.PortfolioCRCheckedNoApproval',{
             piName = this.portfolioItemTypes[this.targetPortfolioLevel].TypePath,
             states = this.portfolioItemStates[piName];
         Ext.Array.each(states, function(state){
+            if (state === this.canceledState){
+                return false;
+            }
             if (state === this.executionState || filters.length > 0){
                 filters.push({
                     property: 'State.Name',
